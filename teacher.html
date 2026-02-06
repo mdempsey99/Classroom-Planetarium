@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Planetarium Teacher</title>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      background: #111;
+      color: white;
+    }
+    button {
+      font-size: 18px;
+      margin: 10px;
+      padding: 10px 20px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>🌌 Planetarium Controls</h1>
+
+<button onclick="setHighlight('orion')">Highlight Orion</button>
+<button onclick="setHighlight('jupiter')">Highlight Jupiter</button>
+<button onclick="setHighlight(null)">Clear</button>
+
+<script>
+  // 🔴 PASTE YOUR FIREBASE CONFIG HERE
+  const firebaseConfig = {
+    apiKey: "YOUR_KEY",
+    authDomain: "YOUR_DOMAIN",
+    projectId: "YOUR_PROJECT_ID"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
+  function setHighlight(objectId) {
+    db.collection("state").doc("current").set({
+      highlight: objectId
+    });
+  }
+</script>
+
+</body>
+</html>
