@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Planetarium Viewer</title>
+
+  <!-- A-Frame -->
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    body { margin: 0; }
+    #arrow {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 48px;
+      color: yellow;
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+
+<div id="arrow">⬅️</div>
+
+<a-scene>
+
+  <!-- Real star texture -->
+  <a-sky src="https://cdn.aframe.io/360-image-gallery-boilerplate/img/starry-sky.jpg"></a-sky>
+
+  <!-- Orion -->
+  <a-entity id="orion" position="-3 1.5 -6" visible="false">
+    <a-sphere radius="0.2" color="yellow"></a-sphere>
+    <a-text value="Orion" align="center" position="0 0.4 0"></a-text>
+  </a-entity>
+
+  <!-- Jupiter -->
+  <a-entity id="jupiter" position="3 2 -6" visible="false">
+    <a-sphere radius="0.25" color="orange"></a-sphere>
+    <a-text value="Jupiter" align="center" position="0 0.4 0"></a-text>
+  </a-entity>
+
+  <a-entity id="camera" camera look-controls></a-entity>
+
+</a-scene>
+
+<script>
+  // 🔴 SAME FIREBASE CONFIG AS TEACHER
+  const firebaseConfig = {
+    apiKey: "YOUR_KEY",
+    authDomain: "YOUR_DOMAIN",
+    projectId: "YOUR_PROJECT_ID"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
+  let currentHighlight = null;
+
+  db.collection("state").doc("current")
+    .onSnapshot(doc => {
+      const data = doc.data();
+      highlightObject(data?.highlight);
+    });
+
+  function highlightObject(id) {
+    ["orion", "jupiter"].forEach(obj => {
+      document.getElementById(obj).setAttribute("visible", false);
+    });
+
+    currentHighlight = id;
+
+    if (id) {
+      document.getElementById(id).setAttribute("visible", true);
+    }
+  }
+
+  // 🔁 Direction arrow logic
+  setInterval(() => {
+    if (!currentHighlight) {
+      arrow.style.display = "none";
+      return;
+    }
+
+    const cam = document.getElementById("camera").object3D;
+    const target = document.getElementById(currentHighlight).object3D;
+
+    const camDir = new THREE.Vector3();
+    cam.getWorldDirection(camDir);
+
+    const targetDir = target.position.clone().normalize();
+    const angle = camDir.angleTo(targetDir);
+
+    if (angle > 0.6) {
+      arrow.style.display = "block";
+    } else {
+      arrow.style.display = "none";
+    }
+  }, 500);
+</script>
+
+</body>
+</html>
