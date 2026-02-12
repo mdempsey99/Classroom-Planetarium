@@ -71,6 +71,18 @@
     </div>
 
     <a-scene vr-mode-ui="enabled: false">
+        <!-- Preload assets -->
+        <a-assets>
+            <img id="summer-normal" src="summer_solstice.png" crossorigin="anonymous">
+            <img id="summer-const" src="summer_solstice_constellations.png" crossorigin="anonymous">
+            <img id="winter-normal" src="winter_solstice.png" crossorigin="anonymous">
+            <img id="winter-const" src="winter_solstice_constellations.png" crossorigin="anonymous">
+            <img id="spring-normal" src="spring_equinox.png" crossorigin="anonymous">
+            <img id="spring-const" src="spring_equinox_constellations.png" crossorigin="anonymous">
+            <img id="fall-normal" src="fall_equinox.png" crossorigin="anonymous">
+            <img id="fall-const" src="fall_equinox_constellations.png" crossorigin="anonymous">
+        </a-assets>
+
         <a-camera 
             look-controls="magicWindowTrackingEnabled: true"
             wasd-controls="enabled: false">
@@ -78,7 +90,7 @@
 
         <a-sky 
             id="star-sky" 
-            src="summer_solstice.png"
+            src="#summer-normal"
             rotation="0 0 0">
         </a-sky>
     </a-scene>
@@ -96,58 +108,74 @@
         };
 
         const STAR_MAPS = {
-            summer: { normal: "summer_solstice.png", constellations: "summer_solstice_constellations.png" },
-            winter: { normal: "winter_solstice.png", constellations: "winter_solstice_constellations.png" },
-            spring: { normal: "spring_equinox.png", constellations: "spring_equinox_constellations.png" },
-            fall: { normal: "fall_equinox.png", constellations: "fall_equinox_constellations.png" }
+            summer: { normal: "#summer-normal", constellations: "#summer-const" },
+            winter: { normal: "#winter-normal", constellations: "#winter-const" },
+            spring: { normal: "#spring-normal", constellations: "#spring-const" },
+            fall: { normal: "#fall-normal", constellations: "#fall-const" }
         };
 
         let db;
         let vrEntered = false;
+        let sceneReady = false;
         
-        // Initialize Firebase
-        try {
-            firebase.initializeApp(firebaseConfig);
-            db = firebase.database();
-            console.log('✅ Firebase ready');
+        // Wait for scene to be ready
+        const scene = document.querySelector('a-scene');
+        if (scene.hasLoaded) {
+            onSceneReady();
+        } else {
+            scene.addEventListener('loaded', onSceneReady);
+        }
+
+        function onSceneReady() {
+            sceneReady = true;
+            console.log('✅ Scene ready');
             
-            // Monitor connection
-            db.ref('.info/connected').on('value', snap => {
-                const indicator = document.getElementById('sync-indicator');
-                if (snap.val()) {
-                    indicator.classList.add('connected');
-                    console.log('✅ Connected');
-                } else {
-                    indicator.classList.remove('connected');
-                    console.log('❌ Disconnected');
-                }
-            });
-            
-            // Listen to teacher
-            db.ref('classroom/currentView').on('value', snapshot => {
-                const state = snapshot.val();
-                if (state) {
-                    console.log('📡 Update:', state.season, state.constellations);
-                    updateSky(state.season, state.constellations);
-                }
-            });
-            
-        } catch (error) {
-            console.error('❌ Firebase error:', error);
+            // Initialize Firebase
+            try {
+                firebase.initializeApp(firebaseConfig);
+                db = firebase.database();
+                console.log('✅ Firebase ready');
+                
+                // Monitor connection
+                db.ref('.info/connected').on('value', snap => {
+                    const indicator = document.getElementById('sync-indicator');
+                    if (snap.val()) {
+                        indicator.classList.add('connected');
+                        console.log('✅ Connected');
+                    } else {
+                        indicator.classList.remove('connected');
+                        console.log('❌ Disconnected');
+                    }
+                });
+                
+                // Listen to teacher
+                db.ref('classroom/currentView').on('value', snapshot => {
+                    const state = snapshot.val();
+                    if (state) {
+                        console.log('📡 Update:', state.season, state.constellations);
+                        updateSky(state.season, state.constellations);
+                    }
+                });
+                
+            } catch (error) {
+                console.error('❌ Firebase error:', error);
+            }
         }
 
         function updateSky(season, showConstellations) {
+            if (!sceneReady) return;
+            
             const sky = document.getElementById('star-sky');
             if (!sky) return;
             
-            const img = showConstellations ? STAR_MAPS[season].constellations : STAR_MAPS[season].normal;
-            console.log('📸 Loading:', img);
-            sky.setAttribute('src', img);
+            const imgSrc = showConstellations ? STAR_MAPS[season].constellations : STAR_MAPS[season].normal;
+            console.log('📸 Loading:', imgSrc);
+            sky.setAttribute('src', imgSrc);
         }
 
         // Auto-enter VR mode on any tap/click
         function enterVR() {
-            if (vrEntered) return;
+            if (vrEntered || !sceneReady) return;
             vrEntered = true;
 
             console.log('👓 Entering VR mode...');
@@ -159,8 +187,11 @@
             
             // Enter VR stereo mode
             if (scene.enterVR) {
-                scene.enterVR();
-                console.log('✅ VR mode active');
+                scene.enterVR().then(() => {
+                    console.log('✅ VR mode active');
+                }).catch(err => {
+                    console.error('❌ VR error:', err);
+                });
             }
         }
 
@@ -168,14 +199,14 @@
         document.addEventListener('click', enterVR);
         document.addEventListener('touchstart', enterVR);
 
-        // Also auto-enter after 2 seconds on mobile
+        // Also auto-enter after 3 seconds on mobile (wait for assets to load)
         if (/Mobi|Android/i.test(navigator.userAgent)) {
             setTimeout(() => {
-                if (!vrEntered) {
+                if (!vrEntered && sceneReady) {
                     console.log('📱 Mobile detected - auto-entering VR');
                     enterVR();
                 }
-            }, 2000);
+            }, 3000);
         }
     </script>
 </body>
