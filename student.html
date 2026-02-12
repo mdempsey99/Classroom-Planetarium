@@ -22,14 +22,13 @@
             background: #000;
         }
 
-        /* Minimal UI - just for loading */
         #loading {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
             color: #fff;
-            font-size: 16px;
+            font-size: 18px;
             text-align: center;
             z-index: 2000;
         }
@@ -38,10 +37,10 @@
             border: 3px solid rgba(255, 255, 255, 0.1);
             border-top: 3px solid #4fc3f7;
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
+            width: 50px;
+            height: 50px;
             animation: spin 1s linear infinite;
-            margin: 0 auto 15px;
+            margin: 0 auto 20px;
         }
 
         @keyframes spin {
@@ -58,8 +57,8 @@
             position: absolute;
             top: 10px;
             right: 10px;
-            width: 10px;
-            height: 10px;
+            width: 12px;
+            height: 12px;
             border-radius: 50%;
             background: #4caf50;
             z-index: 1000;
@@ -75,93 +74,33 @@
             0%, 100% { opacity: 1; }
             50% { opacity: 0.3; }
         }
-
-        /* Control buttons */
-        #controls-overlay {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 1000;
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-
-        .control-btn {
-            padding: 15px 30px;
-            border: none;
-            border-radius: 50px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-            letter-spacing: 1px;
-            color: white;
-            transition: all 0.3s ease;
-        }
-
-        .control-btn:active {
-            transform: scale(0.95);
-        }
-
-        #fullscreen-btn {
-            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-        }
-
-        #fullscreen-btn:hover {
-            box-shadow: 0 6px 25px rgba(67, 233, 123, 0.5);
-        }
-
-        #vr-btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
-
-        #vr-btn:hover {
-            box-shadow: 0 6px 25px rgba(102, 126, 234, 0.5);
-        }
-
-        @media (max-width: 600px) {
-            .control-btn {
-                padding: 12px 24px;
-                font-size: 14px;
-            }
-        }
     </style>
 </head>
 <body>
     <div id="loading">
         <div class="spinner"></div>
-        <p>Connecting...</p>
+        <p>Connecting to classroom...</p>
     </div>
 
     <!-- Small sync indicator -->
     <div id="sync-indicator" class="disconnected"></div>
 
-    <!-- Control buttons -->
-    <div id="controls-overlay" class="hidden">
-        <button id="fullscreen-btn" class="control-btn">📱 FULLSCREEN</button>
-        <button id="vr-btn" class="control-btn">👓 VR MODE</button>
-    </div>
-
-    <!-- A-Frame scene configured for VR -->
+    <!-- A-Frame scene - simple and clean -->
     <a-scene 
-        vr-mode-ui="enabled: false"
+        vr-mode-ui="enabled: true"
         device-orientation-permission-ui="enabled: true"
         background="color: #000000"
-        loading-screen="enabled: false"
-        renderer="antialias: true">
+        loading-screen="enabled: false">
         
         <a-entity id="rig" position="0 0 0">
             <a-camera 
                 look-controls="magicWindowTrackingEnabled: true; touchEnabled: false"
                 wasd-controls="enabled: false"
-                position="0 1.6 0">
+                position="0 0 0">
             </a-camera>
         </a-entity>
 
-        <!-- Sky sphere - will be updated via Firebase -->
+        <!-- Sky sphere - synced with teacher -->
         <a-sky 
             id="star-sky" 
             src="" 
@@ -171,7 +110,7 @@
     </a-scene>
 
     <script>
-        // ⚠️ FIREBASE CONFIG - Your configuration
+        // Firebase Configuration
         const firebaseConfig = {
             apiKey: "AIzaSyBUXUHdJ3oox3YSixJfoYuyRRrILe6n7ck",
             authDomain: "classroom-vrplanetarium.firebaseapp.com",
@@ -187,9 +126,8 @@
         let isFirebaseInitialized = false;
 
         function initializeFirebase() {
-            // Check if Firebase is available
             if (typeof firebase === 'undefined') {
-                console.error('❌ Firebase SDK not loaded. Make sure you are accessing this page via HTTPS (GitHub Pages).');
+                console.error('❌ Firebase SDK not loaded');
                 return false;
             }
 
@@ -197,15 +135,15 @@
                 firebase.initializeApp(firebaseConfig);
                 database = firebase.database();
                 isFirebaseInitialized = true;
-                console.log('✅ Student view: Firebase initialized');
+                console.log('✅ Firebase initialized');
                 return true;
             } catch (error) {
-                console.error('❌ Firebase initialization failed:', error);
+                console.error('❌ Firebase error:', error);
                 return false;
             }
         }
 
-        // Star map configuration (same as teacher)
+        // Star map images
         const STAR_MAPS = {
             summer: {
                 normal: "summer_solstice.png",
@@ -227,148 +165,64 @@
 
         let sceneLoaded = false;
 
-        // Wait for A-Frame to load
+        // Initialize when ready
         document.addEventListener('DOMContentLoaded', function() {
-            // Initialize Firebase first
             initializeFirebase();
             
             const scene = document.querySelector('a-scene');
             
             if (scene.hasLoaded) {
-                initStudentView();
+                init();
             } else {
-                scene.addEventListener('loaded', initStudentView);
+                scene.addEventListener('loaded', init);
             }
         });
 
-        function initStudentView() {
+        function init() {
             sceneLoaded = true;
-            console.log('✅ Student view initialized');
+            console.log('✅ Student view ready');
 
-            // Hide loading, show controls
+            // Hide loading
             document.getElementById('loading').classList.add('hidden');
-            document.getElementById('controls-overlay').classList.remove('hidden');
-
-            // Set up control buttons
-            setupControlButtons();
 
             if (isFirebaseInitialized) {
-                // Listen for teacher's changes
+                // Listen to teacher
                 listenToTeacher();
 
-                // Monitor connection status
-                const connectedRef = database.ref('.info/connected');
-                connectedRef.on('value', (snap) => {
+                // Monitor connection
+                database.ref('.info/connected').on('value', (snap) => {
                     const indicator = document.getElementById('sync-indicator');
                     if (snap.val() === true) {
                         indicator.classList.remove('disconnected');
-                        console.log('✅ Connected to Firebase');
+                        console.log('✅ Connected');
                     } else {
                         indicator.classList.add('disconnected');
-                        console.log('❌ Disconnected from Firebase');
+                        console.log('❌ Disconnected');
                     }
                 });
-            } else {
-                console.warn('⚠️ Firebase not initialized - student view will not update');
             }
 
-            // Preload all images for smooth transitions
+            // Preload images
             preloadImages();
         }
 
-        function setupControlButtons() {
-            const scene = document.querySelector('a-scene');
-            const fullscreenBtn = document.getElementById('fullscreen-btn');
-            const vrBtn = document.getElementById('vr-btn');
-
-            // Fullscreen button
-            fullscreenBtn.addEventListener('click', function() {
-                if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-                    // Enter fullscreen
-                    const elem = document.documentElement;
-                    if (elem.requestFullscreen) {
-                        elem.requestFullscreen();
-                    } else if (elem.webkitRequestFullscreen) {
-                        elem.webkitRequestFullscreen();
-                    } else if (elem.mozRequestFullScreen) {
-                        elem.mozRequestFullScreen();
-                    } else if (elem.msRequestFullscreen) {
-                        elem.msRequestFullscreen();
-                    }
-                    console.log('✅ Entering fullscreen');
-                } else {
-                    // Exit fullscreen
-                    if (document.exitFullscreen) {
-                        document.exitFullscreen();
-                    } else if (document.webkitExitFullscreen) {
-                        document.webkitExitFullscreen();
-                    } else if (document.mozCancelFullScreen) {
-                        document.mozCancelFullScreen();
-                    } else if (document.msExitFullscreen) {
-                        document.msExitFullscreen();
-                    }
-                    console.log('✅ Exiting fullscreen');
-                }
-            });
-
-            // Listen for fullscreen changes
-            const updateFullscreenButton = function() {
-                if (document.fullscreenElement || document.webkitFullscreenElement) {
-                    fullscreenBtn.textContent = '📱 EXIT FULLSCREEN';
-                } else {
-                    fullscreenBtn.textContent = '📱 FULLSCREEN';
-                }
-            };
-
-            document.addEventListener('fullscreenchange', updateFullscreenButton);
-            document.addEventListener('webkitfullscreenchange', updateFullscreenButton);
-            document.addEventListener('mozfullscreenchange', updateFullscreenButton);
-            document.addEventListener('MSFullscreenChange', updateFullscreenButton);
-
-            // VR button - enters stereoscopic split-screen mode
-            vrBtn.addEventListener('click', function() {
-                if (scene.is('vr-mode')) {
-                    // Exit VR
-                    scene.exitVR();
-                    console.log('✅ Exiting VR mode');
-                } else {
-                    // Enter VR
-                    scene.enterVR();
-                    console.log('✅ Entering VR mode');
-                }
-            });
-
-            // Listen for VR mode changes
-            scene.addEventListener('enter-vr', function() {
-                vrBtn.textContent = '👓 EXIT VR';
-                console.log('✅ VR mode activated');
-            });
-
-            scene.addEventListener('exit-vr', function() {
-                vrBtn.textContent = '👓 VR MODE';
-                console.log('✅ VR mode deactivated');
-            });
-        }
-
         function listenToTeacher() {
-            // Listen to the classroom state
             const classroomRef = database.ref('classroom/currentView');
             
             classroomRef.on('value', (snapshot) => {
                 const state = snapshot.val();
                 
                 if (state) {
-                    console.log('📡 Received update from teacher:', state);
-                    updateStudentView(state.season, state.constellations);
+                    console.log('📡 Update from teacher:', state.season, state.constellations ? '(with constellations)' : '');
+                    updateSky(state.season, state.constellations);
                 } else {
-                    // No state yet - load default
-                    console.log('⚠️ No teacher state yet - loading default');
-                    updateStudentView('summer', false);
+                    console.log('⚠️ No teacher data - loading default');
+                    updateSky('summer', false);
                 }
             });
         }
 
-        function updateStudentView(season, showConstellations) {
+        function updateSky(season, showConstellations) {
             if (!sceneLoaded) return;
 
             const sky = document.getElementById('star-sky');
@@ -376,19 +230,16 @@
                 ? STAR_MAPS[season].constellations 
                 : STAR_MAPS[season].normal;
             
-            console.log(`📸 Student view updating to: ${imageFile}`);
+            console.log('📸 Loading:', imageFile);
             sky.setAttribute('src', imageFile);
         }
 
         function preloadImages() {
-            console.log('⏳ Preloading all sky images...');
+            console.log('⏳ Preloading images...');
             Object.keys(STAR_MAPS).forEach(season => {
-                const img1 = new Image();
-                img1.src = STAR_MAPS[season].normal;
-                const img2 = new Image();
-                img2.src = STAR_MAPS[season].constellations;
+                new Image().src = STAR_MAPS[season].normal;
+                new Image().src = STAR_MAPS[season].constellations;
             });
-            console.log('✅ Preloading started');
         }
     </script>
 </body>
