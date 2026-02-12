@@ -7,56 +7,22 @@
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; }
+    </style>
 </head>
-<body style="margin: 0; overflow: hidden; background: #000;">
-    
-    <div id="sync-indicator" style="
-        position: fixed;
-        top: 10px;
-        right: 10px;
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        background: #f44336;
-        z-index: 1000;
-    "></div>
-
+<body>
+    <!-- A-Frame scene with built-in VR button -->
     <a-scene 
-        embedded
-        vr-mode-ui="enabled: false"
-        renderer="antialias: true; colorManagement: true">
+        vr-mode-ui="enabled: true"
+        device-orientation-permission-ui="enabled: true">
         
-        <a-assets>
-            <img id="summer-normal" src="summer_solstice.png" crossorigin="anonymous">
-            <img id="summer-const" src="summer_solstice_constellations.png" crossorigin="anonymous">
-            <img id="winter-normal" src="winter_solstice.png" crossorigin="anonymous">
-            <img id="winter-const" src="winter_solstice_constellations.png" crossorigin="anonymous">
-            <img id="spring-normal" src="spring_equinox.png" crossorigin="anonymous">
-            <img id="spring-const" src="spring_equinox_constellations.png" crossorigin="anonymous">
-            <img id="fall-normal" src="fall_equinox.png" crossorigin="anonymous">
-            <img id="fall-const" src="fall_equinox_constellations.png" crossorigin="anonymous">
-        </a-assets>
-
-        <!-- Single camera with gyroscope -->
-        <a-entity id="rig">
-            <a-camera 
-                look-controls="magicWindowTrackingEnabled: true; touchEnabled: false"
-                wasd-controls="enabled: false"
-                position="0 0 0">
-            </a-camera>
-        </a-entity>
-
-        <!-- Sky sphere -->
-        <a-sky 
-            id="star-sky" 
-            src="#summer-normal"
-            rotation="0 0 0"
-            radius="500">
-        </a-sky>
+        <a-camera look-controls wasd-controls="enabled: false"></a-camera>
+        
+        <a-sky id="sky" src="summer_solstice.png"></a-sky>
     </a-scene>
 
     <script>
-        // Firebase config
         const firebaseConfig = {
             apiKey: "AIzaSyBUXUHdJ3oox3YSixJfoYuyRRrILe6n7ck",
             authDomain: "classroom-vrplanetarium.firebaseapp.com",
@@ -67,80 +33,25 @@
             appId: "1:613751774262:web:79563f3843ef894e05cc97"
         };
 
-        const STAR_MAPS = {
-            summer: { normal: "#summer-normal", constellations: "#summer-const" },
-            winter: { normal: "#winter-normal", constellations: "#winter-const" },
-            spring: { normal: "#spring-normal", constellations: "#spring-const" },
-            fall: { normal: "#fall-normal", constellations: "#fall-const" }
+        const IMAGES = {
+            summer: { normal: "summer_solstice.png", const: "summer_solstice_constellations.png" },
+            winter: { normal: "winter_solstice.png", const: "winter_solstice_constellations.png" },
+            spring: { normal: "spring_equinox.png", const: "spring_equinox_constellations.png" },
+            fall: { normal: "fall_equinox.png", const: "fall_equinox_constellations.png" }
         };
 
-        let db;
-        let sceneReady = false;
-        
-        console.log('🚀 Starting student view...');
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
 
-        // Wait for scene
-        const scene = document.querySelector('a-scene');
-        if (scene.hasLoaded) {
-            onSceneReady();
-        } else {
-            scene.addEventListener('loaded', onSceneReady);
-        }
-
-        function onSceneReady() {
-            sceneReady = true;
-            console.log('✅ Scene loaded');
-            
-            // Initialize Firebase
-            try {
-                firebase.initializeApp(firebaseConfig);
-                db = firebase.database();
-                console.log('✅ Firebase initialized');
-                
-                // Monitor connection
-                db.ref('.info/connected').on('value', snap => {
-                    const indicator = document.getElementById('sync-indicator');
-                    if (snap.val()) {
-                        indicator.style.background = '#4caf50';
-                        console.log('✅ Firebase connected');
-                    } else {
-                        indicator.style.background = '#f44336';
-                        console.log('❌ Firebase disconnected');
-                    }
-                });
-                
-                // Listen to teacher updates
-                db.ref('classroom/currentView').on('value', snapshot => {
-                    const state = snapshot.val();
-                    if (state) {
-                        console.log('📡 Teacher update:', state);
-                        updateSky(state.season, state.constellations);
-                    } else {
-                        console.log('⚠️ No teacher state found');
-                    }
-                });
-                
-            } catch (error) {
-                console.error('❌ Firebase error:', error);
+        // Listen for teacher changes
+        db.ref('classroom/currentView').on('value', snap => {
+            const state = snap.val();
+            if (state) {
+                const img = state.constellations ? IMAGES[state.season].const : IMAGES[state.season].normal;
+                document.getElementById('sky').setAttribute('src', img);
+                console.log('Updated:', img);
             }
-        }
-
-        function updateSky(season, showConstellations) {
-            if (!sceneReady) {
-                console.log('⚠️ Scene not ready, skipping update');
-                return;
-            }
-            
-            const sky = document.getElementById('star-sky');
-            if (!sky) {
-                console.error('❌ Sky element not found');
-                return;
-            }
-            
-            const imgSrc = showConstellations ? STAR_MAPS[season].constellations : STAR_MAPS[season].normal;
-            console.log('📸 Updating sky to:', imgSrc);
-            sky.setAttribute('src', imgSrc);
-        }
+        });
     </script>
 </body>
 </html>
