@@ -88,7 +88,7 @@
 
     <!-- A-Frame scene configured for VR -->
     <a-scene 
-        vr-mode-ui="enabled: true; enterVRButton: .enter-vr-custom"
+        vr-mode-ui="enabled: false"
         device-orientation-permission-ui="enabled: true"
         background="color: #000000"
         loading-screen="enabled: false"
@@ -111,36 +111,56 @@
         </a-sky>
     </a-scene>
 
-    <!-- Custom VR button (positioned for easy access) -->
-    <button class="enter-vr-custom" style="
+    <!-- Controls overlay -->
+    <div id="controls-overlay" style="
         position: absolute;
         bottom: 20px;
         left: 50%;
         transform: translateX(-50%);
-        padding: 15px 30px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        border-radius: 50px;
-        font-size: 16px;
-        font-weight: bold;
-        cursor: pointer;
         z-index: 1000;
-        box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
-        letter-spacing: 1px;
-    ">👓 ENTER VR MODE</button>
+        display: flex;
+        gap: 15px;
+    ">
+        <!-- Fullscreen Toggle Button -->
+        <button id="fullscreen-btn" style="
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(67, 233, 123, 0.4);
+            letter-spacing: 1px;
+        ">📱 FULLSCREEN</button>
+
+        <!-- VR Mode Button -->
+        <button id="vr-btn" style="
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+            letter-spacing: 1px;
+        ">👓 VR MODE</button>
+    </div>
 
     <script>
         // ⚠️ FIREBASE CONFIG - MUST MATCH TEACHER PAGE!
         const firebaseConfig = {
-  apiKey: "AIzaSyBUXUHdJ3oox3YSixJfoYuyRRrILe6n7ck",
-  authDomain: "classroom-vrplanetarium.firebaseapp.com",
-  databaseURL: "https://classroom-vrplanetarium-default-rtdb.firebaseio.com",
-  projectId: "classroom-vrplanetarium",
-  storageBucket: "classroom-vrplanetarium.firebasestorage.app",
-  messagingSenderId: "613751774262",
-  appId: "1:613751774262:web:79563f3843ef894e05cc97"
-};
+            apiKey: "YOUR_API_KEY_HERE",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
 
         // Initialize Firebase
         let database;
@@ -208,6 +228,9 @@
             // Hide loading
             document.getElementById('loading').classList.add('hidden');
 
+            // Set up control buttons
+            setupControlButtons();
+
             if (isFirebaseInitialized) {
                 // Listen for teacher's changes
                 listenToTeacher();
@@ -230,6 +253,84 @@
 
             // Preload all images for smooth transitions
             preloadImages();
+        }
+
+        function setupControlButtons() {
+            const scene = document.querySelector('a-scene');
+            const fullscreenBtn = document.getElementById('fullscreen-btn');
+            const vrBtn = document.getElementById('vr-btn');
+
+            // Fullscreen button
+            fullscreenBtn.addEventListener('click', function() {
+                if (!document.fullscreenElement) {
+                    // Enter fullscreen
+                    if (document.documentElement.requestFullscreen) {
+                        document.documentElement.requestFullscreen();
+                    } else if (document.documentElement.webkitRequestFullscreen) {
+                        document.documentElement.webkitRequestFullscreen();
+                    } else if (document.documentElement.mozRequestFullScreen) {
+                        document.documentElement.mozRequestFullScreen();
+                    } else if (document.documentElement.msRequestFullscreen) {
+                        document.documentElement.msRequestFullscreen();
+                    }
+                    this.textContent = '📱 EXIT FULLSCREEN';
+                    console.log('Entered fullscreen');
+                } else {
+                    // Exit fullscreen
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen();
+                    } else if (document.webkitExitFullscreen) {
+                        document.webkitExitFullscreen();
+                    } else if (document.mozCancelFullScreen) {
+                        document.mozCancelFullScreen();
+                    } else if (document.msExitFullscreen) {
+                        document.msExitFullscreen();
+                    }
+                    this.textContent = '📱 FULLSCREEN';
+                    console.log('Exited fullscreen');
+                }
+            });
+
+            // Listen for fullscreen changes (when user exits with ESC key)
+            document.addEventListener('fullscreenchange', updateFullscreenButton);
+            document.addEventListener('webkitfullscreenchange', updateFullscreenButton);
+            document.addEventListener('mozfullscreenchange', updateFullscreenButton);
+            document.addEventListener('MSFullscreenChange', updateFullscreenButton);
+
+            function updateFullscreenButton() {
+                if (!document.fullscreenElement && 
+                    !document.webkitFullscreenElement && 
+                    !document.mozFullScreenElement && 
+                    !document.msFullscreenElement) {
+                    fullscreenBtn.textContent = '📱 FULLSCREEN';
+                }
+            }
+
+            // VR button - enters stereoscopic split-screen mode
+            vrBtn.addEventListener('click', function() {
+                if (scene.is('vr-mode')) {
+                    // Exit VR
+                    scene.exitVR();
+                    this.textContent = '👓 VR MODE';
+                    console.log('Exited VR mode');
+                } else {
+                    // Enter VR
+                    scene.enterVR();
+                    this.textContent = '👓 EXIT VR';
+                    console.log('Entered VR mode');
+                }
+            });
+
+            // Listen for VR mode changes
+            scene.addEventListener('enter-vr', function() {
+                vrBtn.textContent = '👓 EXIT VR';
+                console.log('VR mode activated');
+            });
+
+            scene.addEventListener('exit-vr', function() {
+                vrBtn.textContent = '👓 VR MODE';
+                console.log('VR mode deactivated');
+            });
         }
 
         function listenToTeacher() {
