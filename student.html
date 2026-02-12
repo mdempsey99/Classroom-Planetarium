@@ -30,12 +30,47 @@
             0%, 100% { opacity: 1; }
             50% { opacity: 0.3; }
         }
+
+        #tap-prompt {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 30px 40px;
+            border-radius: 15px;
+            text-align: center;
+            z-index: 2000;
+            font-family: Arial, sans-serif;
+            border: 2px solid #667eea;
+        }
+
+        #tap-prompt h2 {
+            margin: 0 0 15px 0;
+            font-size: 24px;
+            color: #4fc3f7;
+        }
+
+        #tap-prompt p {
+            margin: 10px 0;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+
+        .hidden { display: none; }
     </style>
 </head>
 <body>
     <div id="sync-indicator"></div>
 
-    <a-scene>
+    <div id="tap-prompt">
+        <h2>👓 VR Mode Ready</h2>
+        <p>Tap anywhere to enter split-screen mode</p>
+        <p style="font-size: 14px; color: #90caf9;">Then rotate to landscape & insert into VR viewer</p>
+    </div>
+
+    <a-scene vr-mode-ui="enabled: false">
         <a-camera 
             look-controls="magicWindowTrackingEnabled: true"
             wasd-controls="enabled: false">
@@ -68,6 +103,7 @@
         };
 
         let db;
+        let vrEntered = false;
         
         // Initialize Firebase
         try {
@@ -107,6 +143,39 @@
             const img = showConstellations ? STAR_MAPS[season].constellations : STAR_MAPS[season].normal;
             console.log('📸 Loading:', img);
             sky.setAttribute('src', img);
+        }
+
+        // Auto-enter VR mode on any tap/click
+        function enterVR() {
+            if (vrEntered) return;
+            vrEntered = true;
+
+            console.log('👓 Entering VR mode...');
+            const scene = document.querySelector('a-scene');
+            const prompt = document.getElementById('tap-prompt');
+            
+            // Hide prompt
+            prompt.classList.add('hidden');
+            
+            // Enter VR stereo mode
+            if (scene.enterVR) {
+                scene.enterVR();
+                console.log('✅ VR mode active');
+            }
+        }
+
+        // Listen for taps/clicks anywhere
+        document.addEventListener('click', enterVR);
+        document.addEventListener('touchstart', enterVR);
+
+        // Also auto-enter after 2 seconds on mobile
+        if (/Mobi|Android/i.test(navigator.userAgent)) {
+            setTimeout(() => {
+                if (!vrEntered) {
+                    console.log('📱 Mobile detected - auto-entering VR');
+                    enterVR();
+                }
+            }, 2000);
         }
     </script>
 </body>
