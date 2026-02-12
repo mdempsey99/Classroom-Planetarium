@@ -7,71 +7,25 @@
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-    <style>
-        body { margin: 0; overflow: hidden; background: #000; }
-        
-        #sync-indicator {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background: #f44336;
-            z-index: 1000;
-        }
-        
-        #sync-indicator.connected {
-            background: #4caf50;
-            animation: pulse 2s infinite;
-        }
-        
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.3; }
-        }
-
-        #tap-prompt {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.9);
-            color: white;
-            padding: 30px 40px;
-            border-radius: 15px;
-            text-align: center;
-            z-index: 2000;
-            font-family: Arial, sans-serif;
-            border: 2px solid #667eea;
-        }
-
-        #tap-prompt h2 {
-            margin: 0 0 15px 0;
-            font-size: 24px;
-            color: #4fc3f7;
-        }
-
-        #tap-prompt p {
-            margin: 10px 0;
-            font-size: 16px;
-            line-height: 1.5;
-        }
-
-        .hidden { display: none; }
-    </style>
 </head>
-<body>
-    <div id="sync-indicator"></div>
+<body style="margin: 0; overflow: hidden; background: #000;">
+    
+    <div id="sync-indicator" style="
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #f44336;
+        z-index: 1000;
+    "></div>
 
-    <div id="tap-prompt">
-        <h2>👓 VR Mode Ready</h2>
-        <p>Tap anywhere to enter split-screen mode</p>
-        <p style="font-size: 14px; color: #90caf9;">Then rotate to landscape & insert into VR viewer</p>
-    </div>
-
-    <a-scene vr-mode-ui="enabled: false">
-        <!-- Preload assets -->
+    <a-scene 
+        embedded
+        vr-mode-ui="enabled: false"
+        renderer="antialias: true; colorManagement: true">
+        
         <a-assets>
             <img id="summer-normal" src="summer_solstice.png" crossorigin="anonymous">
             <img id="summer-const" src="summer_solstice_constellations.png" crossorigin="anonymous">
@@ -83,15 +37,21 @@
             <img id="fall-const" src="fall_equinox_constellations.png" crossorigin="anonymous">
         </a-assets>
 
-        <a-camera 
-            look-controls="magicWindowTrackingEnabled: true"
-            wasd-controls="enabled: false">
-        </a-camera>
+        <!-- Single camera with gyroscope -->
+        <a-entity id="rig">
+            <a-camera 
+                look-controls="magicWindowTrackingEnabled: true; touchEnabled: false"
+                wasd-controls="enabled: false"
+                position="0 0 0">
+            </a-camera>
+        </a-entity>
 
+        <!-- Sky sphere -->
         <a-sky 
             id="star-sky" 
             src="#summer-normal"
-            rotation="0 0 0">
+            rotation="0 0 0"
+            radius="500">
         </a-sky>
     </a-scene>
 
@@ -115,10 +75,11 @@
         };
 
         let db;
-        let vrEntered = false;
         let sceneReady = false;
         
-        // Wait for scene to be ready
+        console.log('🚀 Starting student view...');
+
+        // Wait for scene
         const scene = document.querySelector('a-scene');
         if (scene.hasLoaded) {
             onSceneReady();
@@ -128,32 +89,34 @@
 
         function onSceneReady() {
             sceneReady = true;
-            console.log('✅ Scene ready');
+            console.log('✅ Scene loaded');
             
             // Initialize Firebase
             try {
                 firebase.initializeApp(firebaseConfig);
                 db = firebase.database();
-                console.log('✅ Firebase ready');
+                console.log('✅ Firebase initialized');
                 
                 // Monitor connection
                 db.ref('.info/connected').on('value', snap => {
                     const indicator = document.getElementById('sync-indicator');
                     if (snap.val()) {
-                        indicator.classList.add('connected');
-                        console.log('✅ Connected');
+                        indicator.style.background = '#4caf50';
+                        console.log('✅ Firebase connected');
                     } else {
-                        indicator.classList.remove('connected');
-                        console.log('❌ Disconnected');
+                        indicator.style.background = '#f44336';
+                        console.log('❌ Firebase disconnected');
                     }
                 });
                 
-                // Listen to teacher
+                // Listen to teacher updates
                 db.ref('classroom/currentView').on('value', snapshot => {
                     const state = snapshot.val();
                     if (state) {
-                        console.log('📡 Update:', state.season, state.constellations);
+                        console.log('📡 Teacher update:', state);
                         updateSky(state.season, state.constellations);
+                    } else {
+                        console.log('⚠️ No teacher state found');
                     }
                 });
                 
@@ -163,50 +126,20 @@
         }
 
         function updateSky(season, showConstellations) {
-            if (!sceneReady) return;
+            if (!sceneReady) {
+                console.log('⚠️ Scene not ready, skipping update');
+                return;
+            }
             
             const sky = document.getElementById('star-sky');
-            if (!sky) return;
+            if (!sky) {
+                console.error('❌ Sky element not found');
+                return;
+            }
             
             const imgSrc = showConstellations ? STAR_MAPS[season].constellations : STAR_MAPS[season].normal;
-            console.log('📸 Loading:', imgSrc);
+            console.log('📸 Updating sky to:', imgSrc);
             sky.setAttribute('src', imgSrc);
-        }
-
-        // Auto-enter VR mode on any tap/click
-        function enterVR() {
-            if (vrEntered || !sceneReady) return;
-            vrEntered = true;
-
-            console.log('👓 Entering VR mode...');
-            const scene = document.querySelector('a-scene');
-            const prompt = document.getElementById('tap-prompt');
-            
-            // Hide prompt
-            prompt.classList.add('hidden');
-            
-            // Enter VR stereo mode
-            if (scene.enterVR) {
-                scene.enterVR().then(() => {
-                    console.log('✅ VR mode active');
-                }).catch(err => {
-                    console.error('❌ VR error:', err);
-                });
-            }
-        }
-
-        // Listen for taps/clicks anywhere
-        document.addEventListener('click', enterVR);
-        document.addEventListener('touchstart', enterVR);
-
-        // Also auto-enter after 3 seconds on mobile (wait for assets to load)
-        if (/Mobi|Android/i.test(navigator.userAgent)) {
-            setTimeout(() => {
-                if (!vrEntered && sceneReady) {
-                    console.log('📱 Mobile detected - auto-entering VR');
-                    enterVR();
-                }
-            }, 3000);
         }
     </script>
 </body>
