@@ -53,7 +53,7 @@
             display: none;
         }
 
-        /* Optional: Small indicator in corner */
+        /* Small sync indicator in corner */
         #sync-indicator {
             position: absolute;
             top: 10px;
@@ -75,6 +75,59 @@
             0%, 100% { opacity: 1; }
             50% { opacity: 0.3; }
         }
+
+        /* Control buttons */
+        #controls-overlay {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .control-btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            letter-spacing: 1px;
+            color: white;
+            transition: all 0.3s ease;
+        }
+
+        .control-btn:active {
+            transform: scale(0.95);
+        }
+
+        #fullscreen-btn {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        }
+
+        #fullscreen-btn:hover {
+            box-shadow: 0 6px 25px rgba(67, 233, 123, 0.5);
+        }
+
+        #vr-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        #vr-btn:hover {
+            box-shadow: 0 6px 25px rgba(102, 126, 234, 0.5);
+        }
+
+        @media (max-width: 600px) {
+            .control-btn {
+                padding: 12px 24px;
+                font-size: 14px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -83,12 +136,18 @@
         <p>Connecting...</p>
     </div>
 
-    <!-- Small sync indicator (optional - can be removed for completely clean view) -->
+    <!-- Small sync indicator -->
     <div id="sync-indicator" class="disconnected"></div>
+
+    <!-- Control buttons -->
+    <div id="controls-overlay" class="hidden">
+        <button id="fullscreen-btn" class="control-btn">📱 FULLSCREEN</button>
+        <button id="vr-btn" class="control-btn">👓 VR MODE</button>
+    </div>
 
     <!-- A-Frame scene configured for VR -->
     <a-scene 
-        vr-mode-ui="enabled: true; enterVRButton: .enter-vr-custom"
+        vr-mode-ui="enabled: false"
         device-orientation-permission-ui="enabled: true"
         background="color: #000000"
         loading-screen="enabled: false"
@@ -111,36 +170,17 @@
         </a-sky>
     </a-scene>
 
-    <!-- Custom VR button (positioned for easy access) -->
-    <button class="enter-vr-custom" style="
-        position: absolute;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        padding: 15px 30px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        border-radius: 50px;
-        font-size: 16px;
-        font-weight: bold;
-        cursor: pointer;
-        z-index: 1000;
-        box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
-        letter-spacing: 1px;
-    ">ðŸ‘“ ENTER VR MODE</button>
-
     <script>
-        // âš ï¸ FIREBASE CONFIG - MUST MATCH TEACHER PAGE!
+        // ⚠️ FIREBASE CONFIG - Your configuration
         const firebaseConfig = {
-  apiKey: "AIzaSyBUXUHdJ3oox3YSixJfoYuyRRrILe6n7ck",
-  authDomain: "classroom-vrplanetarium.firebaseapp.com",
-  databaseURL: "https://classroom-vrplanetarium-default-rtdb.firebaseio.com",
-  projectId: "classroom-vrplanetarium",
-  storageBucket: "classroom-vrplanetarium.firebasestorage.app",
-  messagingSenderId: "613751774262",
-  appId: "1:613751774262:web:79563f3843ef894e05cc97"
-};
+            apiKey: "AIzaSyBUXUHdJ3oox3YSixJfoYuyRRrILe6n7ck",
+            authDomain: "classroom-vrplanetarium.firebaseapp.com",
+            databaseURL: "https://classroom-vrplanetarium-default-rtdb.firebaseio.com",
+            projectId: "classroom-vrplanetarium",
+            storageBucket: "classroom-vrplanetarium.firebasestorage.app",
+            messagingSenderId: "613751774262",
+            appId: "1:613751774262:web:79563f3843ef894e05cc97"
+        };
 
         // Initialize Firebase
         let database;
@@ -149,7 +189,7 @@
         function initializeFirebase() {
             // Check if Firebase is available
             if (typeof firebase === 'undefined') {
-                console.error('âŒ Firebase SDK not loaded. Make sure you are accessing this page via HTTPS (GitHub Pages).');
+                console.error('❌ Firebase SDK not loaded. Make sure you are accessing this page via HTTPS (GitHub Pages).');
                 return false;
             }
 
@@ -157,10 +197,10 @@
                 firebase.initializeApp(firebaseConfig);
                 database = firebase.database();
                 isFirebaseInitialized = true;
-                console.log('âœ… Student view: Firebase initialized');
+                console.log('✅ Student view: Firebase initialized');
                 return true;
             } catch (error) {
-                console.error('âŒ Firebase initialization failed:', error);
+                console.error('❌ Firebase initialization failed:', error);
                 return false;
             }
         }
@@ -203,10 +243,14 @@
 
         function initStudentView() {
             sceneLoaded = true;
-            console.log('Student view initialized');
+            console.log('✅ Student view initialized');
 
-            // Hide loading
+            // Hide loading, show controls
             document.getElementById('loading').classList.add('hidden');
+            document.getElementById('controls-overlay').classList.remove('hidden');
+
+            // Set up control buttons
+            setupControlButtons();
 
             if (isFirebaseInitialized) {
                 // Listen for teacher's changes
@@ -218,18 +262,92 @@
                     const indicator = document.getElementById('sync-indicator');
                     if (snap.val() === true) {
                         indicator.classList.remove('disconnected');
-                        console.log('âœ… Connected to Firebase');
+                        console.log('✅ Connected to Firebase');
                     } else {
                         indicator.classList.add('disconnected');
-                        console.log('âŒ Disconnected from Firebase');
+                        console.log('❌ Disconnected from Firebase');
                     }
                 });
             } else {
-                console.warn('Firebase not initialized - student view will not update');
+                console.warn('⚠️ Firebase not initialized - student view will not update');
             }
 
             // Preload all images for smooth transitions
             preloadImages();
+        }
+
+        function setupControlButtons() {
+            const scene = document.querySelector('a-scene');
+            const fullscreenBtn = document.getElementById('fullscreen-btn');
+            const vrBtn = document.getElementById('vr-btn');
+
+            // Fullscreen button
+            fullscreenBtn.addEventListener('click', function() {
+                if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+                    // Enter fullscreen
+                    const elem = document.documentElement;
+                    if (elem.requestFullscreen) {
+                        elem.requestFullscreen();
+                    } else if (elem.webkitRequestFullscreen) {
+                        elem.webkitRequestFullscreen();
+                    } else if (elem.mozRequestFullScreen) {
+                        elem.mozRequestFullScreen();
+                    } else if (elem.msRequestFullscreen) {
+                        elem.msRequestFullscreen();
+                    }
+                    console.log('✅ Entering fullscreen');
+                } else {
+                    // Exit fullscreen
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen();
+                    } else if (document.webkitExitFullscreen) {
+                        document.webkitExitFullscreen();
+                    } else if (document.mozCancelFullScreen) {
+                        document.mozCancelFullScreen();
+                    } else if (document.msExitFullscreen) {
+                        document.msExitFullscreen();
+                    }
+                    console.log('✅ Exiting fullscreen');
+                }
+            });
+
+            // Listen for fullscreen changes
+            const updateFullscreenButton = function() {
+                if (document.fullscreenElement || document.webkitFullscreenElement) {
+                    fullscreenBtn.textContent = '📱 EXIT FULLSCREEN';
+                } else {
+                    fullscreenBtn.textContent = '📱 FULLSCREEN';
+                }
+            };
+
+            document.addEventListener('fullscreenchange', updateFullscreenButton);
+            document.addEventListener('webkitfullscreenchange', updateFullscreenButton);
+            document.addEventListener('mozfullscreenchange', updateFullscreenButton);
+            document.addEventListener('MSFullscreenChange', updateFullscreenButton);
+
+            // VR button - enters stereoscopic split-screen mode
+            vrBtn.addEventListener('click', function() {
+                if (scene.is('vr-mode')) {
+                    // Exit VR
+                    scene.exitVR();
+                    console.log('✅ Exiting VR mode');
+                } else {
+                    // Enter VR
+                    scene.enterVR();
+                    console.log('✅ Entering VR mode');
+                }
+            });
+
+            // Listen for VR mode changes
+            scene.addEventListener('enter-vr', function() {
+                vrBtn.textContent = '👓 EXIT VR';
+                console.log('✅ VR mode activated');
+            });
+
+            scene.addEventListener('exit-vr', function() {
+                vrBtn.textContent = '👓 VR MODE';
+                console.log('✅ VR mode deactivated');
+            });
         }
 
         function listenToTeacher() {
@@ -240,11 +358,11 @@
                 const state = snapshot.val();
                 
                 if (state) {
-                    console.log('ðŸ“¡ Received update from teacher:', state);
+                    console.log('📡 Received update from teacher:', state);
                     updateStudentView(state.season, state.constellations);
                 } else {
                     // No state yet - load default
-                    console.log('No teacher state yet - loading default');
+                    console.log('⚠️ No teacher state yet - loading default');
                     updateStudentView('summer', false);
                 }
             });
@@ -258,32 +376,20 @@
                 ? STAR_MAPS[season].constellations 
                 : STAR_MAPS[season].normal;
             
-            console.log(`Student view updating to: ${imageFile}`);
+            console.log(`📸 Student view updating to: ${imageFile}`);
             sky.setAttribute('src', imageFile);
         }
 
         function preloadImages() {
-            console.log('Preloading all sky images...');
+            console.log('⏳ Preloading all sky images...');
             Object.keys(STAR_MAPS).forEach(season => {
                 const img1 = new Image();
                 img1.src = STAR_MAPS[season].normal;
                 const img2 = new Image();
                 img2.src = STAR_MAPS[season].constellations;
             });
+            console.log('✅ Preloading started');
         }
-
-        // Auto-enter VR mode on mobile (optional - uncomment if desired)
-        /*
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                const vrButton = document.querySelector('.enter-vr-custom');
-                if (vrButton && /Mobi|Android/i.test(navigator.userAgent)) {
-                    console.log('Mobile detected - auto-entering VR mode');
-                    vrButton.click();
-                }
-            }, 2000);
-        });
-        */
     </script>
 </body>
 </html>
