@@ -1,109 +1,289 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>Planetarium Viewer</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student VR View - Star Map</title>
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-  <!-- A-Frame -->
-  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Arial', sans-serif;
+            background: #000;
+        }
 
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+        /* Minimal UI - just for loading */
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            font-size: 16px;
+            text-align: center;
+            z-index: 2000;
+        }
 
-  <style>
-    body { margin: 0; }
-    #arrow {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      font-size: 48px;
-      color: yellow;
-      display: none;
-    }
-  </style>
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top: 3px solid #4fc3f7;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        /* Optional: Small indicator in corner */
+        #sync-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #4caf50;
+            z-index: 1000;
+            animation: pulse 2s infinite;
+        }
+
+        #sync-indicator.disconnected {
+            background: #f44336;
+            animation: none;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+    </style>
 </head>
-
 <body>
+    <div id="loading">
+        <div class="spinner"></div>
+        <p>Connecting...</p>
+    </div>
 
-<div id="arrow">⬅️</div>
+    <!-- Small sync indicator (optional - can be removed for completely clean view) -->
+    <div id="sync-indicator" class="disconnected"></div>
 
-<a-scene>
+    <!-- A-Frame scene configured for VR -->
+    <a-scene 
+        vr-mode-ui="enabled: true; enterVRButton: .enter-vr-custom"
+        device-orientation-permission-ui="enabled: true"
+        background="color: #000000"
+        loading-screen="enabled: false"
+        renderer="antialias: true">
+        
+        <a-entity id="rig" position="0 0 0">
+            <a-camera 
+                look-controls="magicWindowTrackingEnabled: true; touchEnabled: false"
+                wasd-controls="enabled: false"
+                position="0 1.6 0">
+            </a-camera>
+        </a-entity>
 
-  <!-- Real star texture -->
-  <a-sky src="https://cdn.aframe.io/360-image-gallery-boilerplate/img/starry-sky.jpg"></a-sky>
+        <!-- Sky sphere - will be updated via Firebase -->
+        <a-sky 
+            id="star-sky" 
+            src="" 
+            rotation="0 0 0"
+            radius="500">
+        </a-sky>
+    </a-scene>
 
-  <!-- Orion -->
-  <a-entity id="orion" position="-3 1.5 -6" visible="false">
-    <a-sphere radius="0.2" color="yellow"></a-sphere>
-    <a-text value="Orion" align="center" position="0 0.4 0"></a-text>
-  </a-entity>
+    <!-- Custom VR button (positioned for easy access) -->
+    <button class="enter-vr-custom" style="
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 15px 30px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 50px;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        z-index: 1000;
+        box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+        letter-spacing: 1px;
+    ">👓 ENTER VR MODE</button>
 
-  <!-- Jupiter -->
-  <a-entity id="jupiter" position="3 2 -6" visible="false">
-    <a-sphere radius="0.25" color="orange"></a-sphere>
-    <a-text value="Jupiter" align="center" position="0 0.4 0"></a-text>
-  </a-entity>
+    <script>
+        // ⚠️ FIREBASE CONFIG - MUST MATCH TEACHER PAGE!
+        const firebaseConfig = {
+  apiKey: "AIzaSyBUXUHdJ3oox3YSixJfoYuyRRrILe6n7ck",
+  authDomain: "classroom-vrplanetarium.firebaseapp.com",
+  databaseURL: "https://classroom-vrplanetarium-default-rtdb.firebaseio.com",
+  projectId: "classroom-vrplanetarium",
+  storageBucket: "classroom-vrplanetarium.firebasestorage.app",
+  messagingSenderId: "613751774262",
+  appId: "1:613751774262:web:79563f3843ef894e05cc97"
+};
 
-  <a-entity id="camera" camera look-controls></a-entity>
+        // Initialize Firebase
+        let database;
+        let isFirebaseInitialized = false;
 
-</a-scene>
+        function initializeFirebase() {
+            // Check if Firebase is available
+            if (typeof firebase === 'undefined') {
+                console.error('❌ Firebase SDK not loaded. Make sure you are accessing this page via HTTPS (GitHub Pages).');
+                return false;
+            }
 
-<script>
-  // 🔴 SAME FIREBASE CONFIG AS TEACHER
-  const firebaseConfig = {
-    apiKey: "YOUR_KEY",
-    authDomain: "YOUR_DOMAIN",
-    projectId: "YOUR_PROJECT_ID"
-  };
+            try {
+                firebase.initializeApp(firebaseConfig);
+                database = firebase.database();
+                isFirebaseInitialized = true;
+                console.log('✅ Student view: Firebase initialized');
+                return true;
+            } catch (error) {
+                console.error('❌ Firebase initialization failed:', error);
+                return false;
+            }
+        }
 
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.firestore();
+        // Star map configuration (same as teacher)
+        const STAR_MAPS = {
+            summer: {
+                normal: "summer_solstice.png",
+                constellations: "summer_solstice_constellations.png"
+            },
+            winter: {
+                normal: "winter_solstice.png",
+                constellations: "winter_solstice_constellations.png"
+            },
+            spring: {
+                normal: "spring_equinox.png",
+                constellations: "spring_equinox_constellations.png"
+            },
+            fall: {
+                normal: "fall_equinox.png",
+                constellations: "fall_equinox_constellations.png"
+            }
+        };
 
-  let currentHighlight = null;
+        let sceneLoaded = false;
 
-  db.collection("state").doc("current")
-    .onSnapshot(doc => {
-      const data = doc.data();
-      highlightObject(data?.highlight);
-    });
+        // Wait for A-Frame to load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize Firebase first
+            initializeFirebase();
+            
+            const scene = document.querySelector('a-scene');
+            
+            if (scene.hasLoaded) {
+                initStudentView();
+            } else {
+                scene.addEventListener('loaded', initStudentView);
+            }
+        });
 
-  function highlightObject(id) {
-    ["orion", "jupiter"].forEach(obj => {
-      document.getElementById(obj).setAttribute("visible", false);
-    });
+        function initStudentView() {
+            sceneLoaded = true;
+            console.log('Student view initialized');
 
-    currentHighlight = id;
+            // Hide loading
+            document.getElementById('loading').classList.add('hidden');
 
-    if (id) {
-      document.getElementById(id).setAttribute("visible", true);
-    }
-  }
+            if (isFirebaseInitialized) {
+                // Listen for teacher's changes
+                listenToTeacher();
 
-  // 🔁 Direction arrow logic
-  setInterval(() => {
-    if (!currentHighlight) {
-      arrow.style.display = "none";
-      return;
-    }
+                // Monitor connection status
+                const connectedRef = database.ref('.info/connected');
+                connectedRef.on('value', (snap) => {
+                    const indicator = document.getElementById('sync-indicator');
+                    if (snap.val() === true) {
+                        indicator.classList.remove('disconnected');
+                        console.log('✅ Connected to Firebase');
+                    } else {
+                        indicator.classList.add('disconnected');
+                        console.log('❌ Disconnected from Firebase');
+                    }
+                });
+            } else {
+                console.warn('Firebase not initialized - student view will not update');
+            }
 
-    const cam = document.getElementById("camera").object3D;
-    const target = document.getElementById(currentHighlight).object3D;
+            // Preload all images for smooth transitions
+            preloadImages();
+        }
 
-    const camDir = new THREE.Vector3();
-    cam.getWorldDirection(camDir);
+        function listenToTeacher() {
+            // Listen to the classroom state
+            const classroomRef = database.ref('classroom/currentView');
+            
+            classroomRef.on('value', (snapshot) => {
+                const state = snapshot.val();
+                
+                if (state) {
+                    console.log('📡 Received update from teacher:', state);
+                    updateStudentView(state.season, state.constellations);
+                } else {
+                    // No state yet - load default
+                    console.log('No teacher state yet - loading default');
+                    updateStudentView('summer', false);
+                }
+            });
+        }
 
-    const targetDir = target.position.clone().normalize();
-    const angle = camDir.angleTo(targetDir);
+        function updateStudentView(season, showConstellations) {
+            if (!sceneLoaded) return;
 
-    if (angle > 0.6) {
-      arrow.style.display = "block";
-    } else {
-      arrow.style.display = "none";
-    }
-  }, 500);
-</script>
+            const sky = document.getElementById('star-sky');
+            const imageFile = showConstellations 
+                ? STAR_MAPS[season].constellations 
+                : STAR_MAPS[season].normal;
+            
+            console.log(`Student view updating to: ${imageFile}`);
+            sky.setAttribute('src', imageFile);
+        }
 
+        function preloadImages() {
+            console.log('Preloading all sky images...');
+            Object.keys(STAR_MAPS).forEach(season => {
+                const img1 = new Image();
+                img1.src = STAR_MAPS[season].normal;
+                const img2 = new Image();
+                img2.src = STAR_MAPS[season].constellations;
+            });
+        }
+
+        // Auto-enter VR mode on mobile (optional - uncomment if desired)
+        /*
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                const vrButton = document.querySelector('.enter-vr-custom');
+                if (vrButton && /Mobi|Android/i.test(navigator.userAgent)) {
+                    console.log('Mobile detected - auto-entering VR mode');
+                    vrButton.click();
+                }
+            }, 2000);
+        });
+        */
+    </script>
 </body>
 </html>
