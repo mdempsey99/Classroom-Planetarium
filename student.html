@@ -7,16 +7,66 @@
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background: #000; 
+        }
+        
+        /* Make the A-Frame canvas split-screen by duplicating it */
+        a-scene {
+            display: block;
+            width: 200% !important;
+            height: 100% !important;
+            transform: scaleX(0.5);
+            transform-origin: left center;
+        }
+        
+        #sync-dot {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #f44336;
+            z-index: 1000;
+        }
+        
+        #sync-dot.connected {
+            background: #4caf50;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        #info {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            z-index: 1000;
+        }
+    </style>
 </head>
-<body style="margin: 0; overflow: hidden; background: #000;">
+<body>
     
-    <div id="sync-dot" style="position: fixed; top: 10px; right: 10px; width: 10px; height: 10px; border-radius: 50%; background: #f44336; z-index: 1000;"></div>
+    <div id="sync-dot"></div>
+    <div id="info">📱 Rotate to landscape & insert into VR viewer</div>
 
     <a-scene 
         vr-mode-ui="enabled: false"
         device-orientation-permission-ui="enabled: true"
-        loading-screen="enabled: false"
-        renderer="colorManagement: true; sortObjects: true">
+        loading-screen="enabled: false">
         
         <a-assets timeout="30000">
             <img id="summer-normal" src="summer_solstice.png" crossorigin="anonymous">
@@ -29,62 +79,15 @@
             <img id="fall-const" src="fall_equinox_constellations.png" crossorigin="anonymous">
         </a-assets>
         
-        <!-- Single camera rig with gyroscope -->
-        <a-entity id="rig" position="0 0 0">
-            <a-camera 
-                id="main-camera"
-                look-controls="magicWindowTrackingEnabled: true; touchEnabled: false"
-                wasd-controls="enabled: false"
-                position="0 0 0">
-            </a-camera>
-        </a-entity>
+        <a-camera 
+            look-controls="magicWindowTrackingEnabled: true; touchEnabled: false"
+            wasd-controls="enabled: false">
+        </a-camera>
         
-        <a-sky id="sky" src="#summer-normal" rotation="0 0 0" radius="500"></a-sky>
+        <a-sky id="sky" src="#summer-normal" rotation="0 0 0"></a-sky>
     </a-scene>
 
     <script>
-        AFRAME.registerComponent('stereo-renderer', {
-            schema: {
-                eye: {type: 'string', default: 'left'}
-            },
-            
-            init: function() {
-                const sceneEl = this.el.sceneEl;
-                const data = this.data;
-                
-                this.originalRender = sceneEl.renderer.render.bind(sceneEl.renderer);
-                
-                sceneEl.renderer.render = (scene, camera) => {
-                    const renderer = sceneEl.renderer;
-                    const width = renderer.domElement.width;
-                    const height = renderer.domElement.height;
-                    
-                    if (window.stereoMode) {
-                        // Split screen rendering
-                        renderer.setScissorTest(true);
-                        
-                        // Left eye
-                        renderer.setViewport(0, 0, width / 2, height);
-                        renderer.setScissor(0, 0, width / 2, height);
-                        camera.position.x = -0.032; // Half IPD
-                        this.originalRender(scene, camera);
-                        
-                        // Right eye
-                        renderer.setViewport(width / 2, 0, width / 2, height);
-                        renderer.setScissor(width / 2, 0, width / 2, height);
-                        camera.position.x = 0.032; // Half IPD
-                        this.originalRender(scene, camera);
-                        
-                        renderer.setScissorTest(false);
-                        camera.position.x = 0; // Reset
-                    } else {
-                        // Normal single view
-                        this.originalRender(scene, camera);
-                    }
-                };
-            }
-        });
-
         const firebaseConfig = {
             apiKey: "AIzaSyBUXUHdJ3oox3YSixJfoYuyRRrILe6n7ck",
             authDomain: "classroom-vrplanetarium.firebaseapp.com",
@@ -102,37 +105,31 @@
             fall: { normal: "#fall-normal", const: "#fall-const" }
         };
 
-        window.stereoMode = true; // Always in stereo mode for classroom use
-
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
+        console.log('✅ Firebase initialized');
 
-        // Connection indicator
+        // Connection
         db.ref('.info/connected').on('value', snap => {
-            document.getElementById('sync-dot').style.background = snap.val() ? '#4caf50' : '#f44336';
-            console.log(snap.val() ? '✅ Connected' : '❌ Disconnected');
+            const dot = document.getElementById('sync-dot');
+            if (snap.val()) {
+                dot.classList.add('connected');
+                console.log('✅ Connected');
+            } else {
+                dot.classList.remove('connected');
+                console.log('❌ Disconnected');
+            }
         });
 
-        // Listen for teacher updates
+        // Teacher sync
         db.ref('classroom/currentView').on('value', snap => {
             const state = snap.val();
             if (state) {
                 const img = state.constellations ? IMAGES[state.season].const : IMAGES[state.season].normal;
                 document.getElementById('sky').setAttribute('src', img);
-                console.log('📡 Updated:', state.season);
+                console.log('📡 Updated:', state.season, state.constellations);
             }
         });
-
-        // Apply stereo renderer when scene loads
-        const scene = document.querySelector('a-scene');
-        if (scene.hasLoaded) {
-            scene.setAttribute('stereo-renderer', '');
-        } else {
-            scene.addEventListener('loaded', function() {
-                scene.setAttribute('stereo-renderer', '');
-                console.log('✅ Stereo mode active');
-            });
-        }
     </script>
 </body>
 </html>
