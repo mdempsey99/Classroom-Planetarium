@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student VR View</title>
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background: #000; 
+        }
+        
+        /* Make the A-Frame canvas split-screen by duplicating it */
+        a-scene {
+            display: block;
+            width: 200% !important;
+            height: 100% !important;
+            transform: scaleX(0.5);
+            transform-origin: left center;
+        }
+        
+        #sync-dot {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #f44336;
+            z-index: 1000;
+        }
+        
+        #sync-dot.connected {
+            background: #4caf50;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        #info {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    
+    <div id="sync-dot"></div>
+    <div id="info">📱 Rotate to landscape & insert into VR viewer</div>
+
+    <a-scene 
+        vr-mode-ui="enabled: false"
+        device-orientation-permission-ui="enabled: true"
+        loading-screen="enabled: false">
+        
+        <a-assets timeout="30000">
+            <img id="summer-normal" src="summer_solstice.png" crossorigin="anonymous">
+            <img id="summer-const" src="summer_solstice_constellations.png" crossorigin="anonymous">
+            <img id="winter-normal" src="winter_solstice.png" crossorigin="anonymous">
+            <img id="winter-const" src="winter_solstice_constellations.png" crossorigin="anonymous">
+            <img id="spring-normal" src="spring_equinox.png" crossorigin="anonymous">
+            <img id="spring-const" src="spring_equinox_constellations.png" crossorigin="anonymous">
+            <img id="fall-normal" src="fall_equinox.png" crossorigin="anonymous">
+            <img id="fall-const" src="fall_equinox_constellations.png" crossorigin="anonymous">
+        </a-assets>
+        
+        <a-camera 
+            look-controls="magicWindowTrackingEnabled: true; touchEnabled: false"
+            wasd-controls="enabled: false">
+        </a-camera>
+        
+        <a-sky id="sky" src="#summer-normal" rotation="0 0 0"></a-sky>
+    </a-scene>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBUXUHdJ3oox3YSixJfoYuyRRrILe6n7ck",
+            authDomain: "classroom-vrplanetarium.firebaseapp.com",
+            databaseURL: "https://classroom-vrplanetarium-default-rtdb.firebaseio.com",
+            projectId: "classroom-vrplanetarium",
+            storageBucket: "classroom-vrplanetarium.firebasestorage.app",
+            messagingSenderId: "613751774262",
+            appId: "1:613751774262:web:79563f3843ef894e05cc97"
+        };
+
+        const IMAGES = {
+            summer: { normal: "#summer-normal", const: "#summer-const" },
+            winter: { normal: "#winter-normal", const: "#winter-const" },
+            spring: { normal: "#spring-normal", const: "#spring-const" },
+            fall: { normal: "#fall-normal", const: "#fall-const" }
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        console.log('✅ Firebase initialized');
+
+        // Connection
+        db.ref('.info/connected').on('value', snap => {
+            const dot = document.getElementById('sync-dot');
+            if (snap.val()) {
+                dot.classList.add('connected');
+                console.log('✅ Connected');
+            } else {
+                dot.classList.remove('connected');
+                console.log('❌ Disconnected');
+            }
+        });
+
+        // Teacher sync
+        db.ref('classroom/currentView').on('value', snap => {
+            const state = snap.val();
+            if (state) {
+                const img = state.constellations ? IMAGES[state.season].const : IMAGES[state.season].normal;
+                document.getElementById('sky').setAttribute('src', img);
+                console.log('📡 Updated:', state.season, state.constellations);
+            }
+        });
+    </script>
+</body>
+</html>
