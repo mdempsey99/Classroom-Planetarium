@@ -8,21 +8,104 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; }
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background: #000; 
+        }
+        
+        /* Instruction overlay - tap to start */
+        #start-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        #start-overlay h1 {
+            font-size: 28px;
+            margin-bottom: 20px;
+            color: #4fc3f7;
+        }
+        
+        #start-overlay p {
+            font-size: 16px;
+            margin: 10px 0;
+            max-width: 350px;
+            line-height: 1.6;
+        }
+        
+        #start-overlay button {
+            margin-top: 30px;
+            padding: 18px 40px;
+            font-size: 18px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            letter-spacing: 1px;
+        }
+        
+        .hidden { display: none; }
+        
+        /* Connection indicator */
+        #sync-dot {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #f44336;
+            z-index: 1000;
+        }
+        
+        #sync-dot.connected {
+            background: #4caf50;
+        }
     </style>
 </head>
 <body>
-    <!-- A-Frame scene with built-in VR button -->
+    <!-- Start overlay - tap to enter VR -->
+    <div id="start-overlay">
+        <h1>🌟 VR Star Map</h1>
+        <p>Tap below to enter split-screen VR mode</p>
+        <p style="font-size: 14px; color: #90caf9;">Rotate to landscape & insert phone into VR viewer</p>
+        <button id="start-btn">👓 START VR MODE</button>
+    </div>
+    
+    <!-- Connection indicator -->
+    <div id="sync-dot"></div>
+
+    <!-- A-Frame scene -->
     <a-scene 
-        vr-mode-ui="enabled: true"
+        embedded
+        vr-mode-ui="enabled: false"
         device-orientation-permission-ui="enabled: true">
         
-        <a-camera look-controls wasd-controls="enabled: false"></a-camera>
+        <a-camera 
+            look-controls="magicWindowTrackingEnabled: true; touchEnabled: false"
+            wasd-controls="enabled: false">
+        </a-camera>
         
-        <a-sky id="sky" src="summer_solstice.png"></a-sky>
+        <a-sky id="sky" src="summer_solstice.png" rotation="0 0 0"></a-sky>
     </a-scene>
 
     <script>
+        // Firebase config
         const firebaseConfig = {
             apiKey: "AIzaSyBUXUHdJ3oox3YSixJfoYuyRRrILe6n7ck",
             authDomain: "classroom-vrplanetarium.firebaseapp.com",
@@ -40,8 +123,22 @@
             fall: { normal: "fall_equinox.png", const: "fall_equinox_constellations.png" }
         };
 
+        // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
+        console.log('✅ Firebase initialized');
+
+        // Monitor connection
+        db.ref('.info/connected').on('value', snap => {
+            const dot = document.getElementById('sync-dot');
+            if (snap.val()) {
+                dot.classList.add('connected');
+                console.log('✅ Connected to Firebase');
+            } else {
+                dot.classList.remove('connected');
+                console.log('❌ Disconnected from Firebase');
+            }
+        });
 
         // Listen for teacher changes
         db.ref('classroom/currentView').on('value', snap => {
@@ -49,9 +146,35 @@
             if (state) {
                 const img = state.constellations ? IMAGES[state.season].const : IMAGES[state.season].normal;
                 document.getElementById('sky').setAttribute('src', img);
-                console.log('Updated:', img);
+                console.log('📡 Updated to:', state.season, state.constellations ? '(with constellations)' : '');
             }
         });
+
+        // Force VR mode when button clicked
+        document.getElementById('start-btn').addEventListener('click', function() {
+            console.log('👓 Entering forced VR mode...');
+            
+            // Hide overlay
+            document.getElementById('start-overlay').classList.add('hidden');
+            
+            // Get the scene
+            const scene = document.querySelector('a-scene');
+            
+            // Wait for scene to be ready
+            if (scene.hasLoaded) {
+                enterVRMode(scene);
+            } else {
+                scene.addEventListener('loaded', function() {
+                    enterVRMode(scene);
+                });
+            }
+        });
+
+        function enterVRMode(scene) {
+            // Force enter VR mode (creates split-screen for Cardboard-style VR)
+            scene.enterVR();
+            console.log('✅ VR mode activated (split-screen)');
+        }
     </script>
 </body>
 </html>
