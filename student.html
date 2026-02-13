@@ -14,14 +14,13 @@
             background: #000; 
         }
         
-        /* Instruction overlay - tap to start */
         #start-overlay {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.95);
+            background: rgba(0, 0, 0, 0.8);
             color: white;
             display: flex;
             flex-direction: column;
@@ -59,9 +58,13 @@
             letter-spacing: 1px;
         }
         
-        .hidden { display: none; }
+        #start-overlay button:disabled {
+            background: #666;
+            cursor: wait;
+        }
         
-        /* Connection indicator */
+        .hidden { display: none !important; }
+        
         #sync-dot {
             position: fixed;
             top: 10px;
@@ -79,33 +82,41 @@
     </style>
 </head>
 <body>
-    <!-- Start overlay - tap to enter VR -->
     <div id="start-overlay">
         <h1>🌟 VR Star Map</h1>
-        <p>Tap below to enter split-screen VR mode</p>
-        <p style="font-size: 14px; color: #90caf9;">Rotate to landscape & insert phone into VR viewer</p>
-        <button id="start-btn">👓 START VR MODE</button>
+        <p id="status-text">Loading sky images...</p>
+        <p style="font-size: 14px; color: #90caf9;">Rotate to landscape & insert into VR viewer</p>
+        <button id="start-btn" disabled>⏳ LOADING...</button>
     </div>
     
-    <!-- Connection indicator -->
     <div id="sync-dot"></div>
 
-    <!-- A-Frame scene -->
     <a-scene 
-        embedded
         vr-mode-ui="enabled: false"
-        device-orientation-permission-ui="enabled: true">
+        device-orientation-permission-ui="enabled: true"
+        loading-screen="enabled: false">
+        
+        <!-- Preload all images -->
+        <a-assets timeout="30000">
+            <img id="summer-normal" src="summer_solstice.png" crossorigin="anonymous">
+            <img id="summer-const" src="summer_solstice_constellations.png" crossorigin="anonymous">
+            <img id="winter-normal" src="winter_solstice.png" crossorigin="anonymous">
+            <img id="winter-const" src="winter_solstice_constellations.png" crossorigin="anonymous">
+            <img id="spring-normal" src="spring_equinox.png" crossorigin="anonymous">
+            <img id="spring-const" src="spring_equinox_constellations.png" crossorigin="anonymous">
+            <img id="fall-normal" src="fall_equinox.png" crossorigin="anonymous">
+            <img id="fall-const" src="fall_equinox_constellations.png" crossorigin="anonymous">
+        </a-assets>
         
         <a-camera 
             look-controls="magicWindowTrackingEnabled: true; touchEnabled: false"
             wasd-controls="enabled: false">
         </a-camera>
         
-        <a-sky id="sky" src="summer_solstice.png" rotation="0 0 0"></a-sky>
+        <a-sky id="sky" src="#summer-normal" rotation="0 0 0"></a-sky>
     </a-scene>
 
     <script>
-        // Firebase config
         const firebaseConfig = {
             apiKey: "AIzaSyBUXUHdJ3oox3YSixJfoYuyRRrILe6n7ck",
             authDomain: "classroom-vrplanetarium.firebaseapp.com",
@@ -117,15 +128,18 @@
         };
 
         const IMAGES = {
-            summer: { normal: "summer_solstice.png", const: "summer_solstice_constellations.png" },
-            winter: { normal: "winter_solstice.png", const: "winter_solstice_constellations.png" },
-            spring: { normal: "spring_equinox.png", const: "spring_equinox_constellations.png" },
-            fall: { normal: "fall_equinox.png", const: "fall_equinox_constellations.png" }
+            summer: { normal: "#summer-normal", const: "#summer-const" },
+            winter: { normal: "#winter-normal", const: "#winter-const" },
+            spring: { normal: "#spring-normal", const: "#spring-const" },
+            fall: { normal: "#fall-normal", const: "#fall-const" }
         };
+
+        let sceneReady = false;
+        let db;
 
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
+        db = firebase.database();
         console.log('✅ Firebase initialized');
 
         // Monitor connection
@@ -133,48 +147,65 @@
             const dot = document.getElementById('sync-dot');
             if (snap.val()) {
                 dot.classList.add('connected');
-                console.log('✅ Connected to Firebase');
+                console.log('✅ Connected');
             } else {
                 dot.classList.remove('connected');
-                console.log('❌ Disconnected from Firebase');
+                console.log('❌ Disconnected');
             }
         });
 
         // Listen for teacher changes
         db.ref('classroom/currentView').on('value', snap => {
             const state = snap.val();
-            if (state) {
+            if (state && sceneReady) {
                 const img = state.constellations ? IMAGES[state.season].const : IMAGES[state.season].normal;
                 document.getElementById('sky').setAttribute('src', img);
-                console.log('📡 Updated to:', state.season, state.constellations ? '(with constellations)' : '');
+                console.log('📡 Updated:', state.season, state.constellations);
             }
         });
 
-        // Force VR mode when button clicked
+        // Wait for scene to load
+        const scene = document.querySelector('a-scene');
+        
+        if (scene.hasLoaded) {
+            onSceneLoaded();
+        } else {
+            scene.addEventListener('loaded', onSceneLoaded);
+        }
+
+        function onSceneLoaded() {
+            sceneReady = true;
+            console.log('✅ Scene loaded');
+            
+            // Enable the button
+            const btn = document.getElementById('start-btn');
+            const statusText = document.getElementById('status-text');
+            
+            btn.disabled = false;
+            btn.textContent = '👓 START VR MODE';
+            statusText.textContent = 'Ready! Tap below to enter split-screen mode';
+            
+            console.log('✅ Ready for VR mode');
+        }
+
+        // Start button click
         document.getElementById('start-btn').addEventListener('click', function() {
-            console.log('👓 Entering forced VR mode...');
+            if (!sceneReady) {
+                console.log('⚠️ Scene not ready yet');
+                return;
+            }
+            
+            console.log('👓 Entering VR mode...');
             
             // Hide overlay
             document.getElementById('start-overlay').classList.add('hidden');
             
-            // Get the scene
+            // Enter VR mode
             const scene = document.querySelector('a-scene');
-            
-            // Wait for scene to be ready
-            if (scene.hasLoaded) {
-                enterVRMode(scene);
-            } else {
-                scene.addEventListener('loaded', function() {
-                    enterVRMode(scene);
-                });
-            }
-        });
-
-        function enterVRMode(scene) {
-            // Force enter VR mode (creates split-screen for Cardboard-style VR)
             scene.enterVR();
-            console.log('✅ VR mode activated (split-screen)');
-        }
+            
+            console.log('✅ VR mode active');
+        });
     </script>
 </body>
 </html>
