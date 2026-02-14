@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Student VR View</title>
+
+<script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+<style>
+body { margin:0; display:flex; overflow:hidden; background:black; }
+.scene-half { width:50vw; height:100vh; }
+</style>
+</head>
+<body>
+
+<a-scene class="scene-half" embedded device-orientation-permission-ui="enabled:true">
+    <a-camera look-controls wasd-controls="enabled:false"></a-camera>
+    <a-sky id="skyLeft" src="summer_solstice.jpg"></a-sky>
+</a-scene>
+
+<a-scene class="scene-half" embedded>
+    <a-camera look-controls wasd-controls="enabled:false"></a-camera>
+    <a-sky id="skyRight" src="summer_solstice.jpg"></a-sky>
+</a-scene>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyBUXUHdJ3oox3YSixJfoYuyRRrILe6n7ck",
+  authDomain: "classroom-vrplanetarium.firebaseapp.com",
+  databaseURL: "https://classroom-vrplanetarium-default-rtdb.firebaseio.com",
+  projectId: "classroom-vrplanetarium",
+  storageBucket: "classroom-vrplanetarium.firebasestorage.app",
+  messagingSenderId: "613751774262",
+  appId: "1:613751774262:web:79563f3843ef894e05cc97"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+const IMAGES = {
+    summer: { normal: "summer_solstice.jpg", const: "summer_solstice_constellations.jpg" },
+    winter: { normal: "winter_solstice.jpg", const: "winter_solstice_constellations.jpg" },
+    spring: { normal: "spring_equinox.jpg", const: "spring_equinox_constellations.jpg" },
+    fall: { normal: "fall_equinox.jpg", const: "fall_equinox_constellations.jpg" }
+};
+
+db.ref("classroom/currentView").on("value", snap => {
+    const state = snap.val();
+    if (!state) return;
+
+    const img = state.constellations
+        ? IMAGES[state.season].const
+        : IMAGES[state.season].normal;
+
+    document.getElementById("skyLeft").setAttribute("src", img);
+    document.getElementById("skyRight").setAttribute("src", img);
+});
+</script>
+
+</body>
+</html>
