@@ -6,8 +6,6 @@
 <title>Student VR View</title>
 
 <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-<script src="https://unpkg.com/aframe-stereo-component/dist/aframe-stereo-component.min.js"></script>
-
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
@@ -15,48 +13,40 @@
 body {
     margin: 0;
     overflow: hidden;
-    background: #000;
+    background: black;
+    display: flex;
+}
+.scene-half {
+    width: 50vw;
+    height: 100vh;
 }
 </style>
 </head>
 
 <body>
 
-<a-scene embedded device-orientation-permission-ui="enabled: true">
+<!-- LEFT EYE -->
+<a-scene class="scene-half" embedded device-orientation-permission-ui="enabled: true">
+    <a-camera look-controls wasd-controls="enabled: false"></a-camera>
+    <a-sky id="skyLeft" src="summer_solstice.png"></a-sky>
+</a-scene>
 
-    <!-- Camera -->
-    <a-entity camera look-controls position="0 1.6 0"></a-entity>
-
-    <!-- Left Eye -->
-    <a-entity
-        id="leftSky"
-        geometry="primitive: sphere; radius: 5000"
-        material="side: back; src: summer_solstice.png"
-        scale="-1 1 1"
-        stereo="eye:left">
-    </a-entity>
-
-    <!-- Right Eye -->
-    <a-entity
-        id="rightSky"
-        geometry="primitive: sphere; radius: 5000"
-        material="side: back; src: summer_solstice.png"
-        scale="-1 1 1"
-        stereo="eye:right">
-    </a-entity>
-
+<!-- RIGHT EYE -->
+<a-scene class="scene-half" embedded device-orientation-permission-ui="enabled: false">
+    <a-camera look-controls wasd-controls="enabled: false"></a-camera>
+    <a-sky id="skyRight" src="summer_solstice.png"></a-sky>
 </a-scene>
 
 <script>
 
 const firebaseConfig = {
-    apiKey: "AIzaSyBUXUHdJ3oox3YSixJfoYuyRRrILe6n7ck",
-    authDomain: "classroom-vrplanetarium.firebaseapp.com",
-    databaseURL: "https://classroom-vrplanetarium-default-rtdb.firebaseio.com",
-    projectId: "classroom-vrplanetarium",
-    storageBucket: "classroom-vrplanetarium.firebasestorage.app",
-    messagingSenderId: "613751774262",
-    appId: "1:613751774262:web:79563f3843ef894e05cc97"
+    apiKey: "YOUR_KEY",
+    authDomain: "YOUR_DOMAIN",
+    databaseURL: "YOUR_DB",
+    projectId: "YOUR_ID",
+    storageBucket: "YOUR_BUCKET",
+    messagingSenderId: "YOUR_MSG_ID",
+    appId: "YOUR_APP_ID"
 };
 
 const IMAGES = {
@@ -69,7 +59,6 @@ const IMAGES = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// Listen for teacher changes
 db.ref('classroom/currentView').on('value', snap => {
     const state = snap.val();
     if (state) {
@@ -77,13 +66,8 @@ db.ref('classroom/currentView').on('value', snap => {
             ? IMAGES[state.season].const
             : IMAGES[state.season].normal;
 
-        document.getElementById('leftSky')
-            .setAttribute('material', 'src', img);
-
-        document.getElementById('rightSky')
-            .setAttribute('material', 'src', img);
-
-        console.log('Updated:', img);
+        document.getElementById('skyLeft').setAttribute('src', img);
+        document.getElementById('skyRight').setAttribute('src', img);
     }
 });
 
