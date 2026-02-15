@@ -1,85 +1,79 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Teacher Control - VR Star Map</title>
-
-<script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-
-<style>
-body { margin:0; overflow:hidden; font-family:Arial, sans-serif; }
-#controls { position:absolute; top:20px; left:50%; transform:translateX(-50%); z-index:1000; }
-button { padding:10px 15px; margin:5px; font-weight:bold; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teacher Control - VR Star Map</title>
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; background: #000; }
+        #controls { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; 
+                    background: rgba(0,0,0,0.8); padding: 15px; border-radius: 10px; display: flex; 
+                    gap: 10px; flex-wrap: wrap; justify-content: center; }
+        button { padding: 12px 20px; margin: 0; font-weight: bold; border: none; border-radius: 8px; 
+                 cursor: pointer; color: white; font-size: 14px; }
+        .season-btn { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        #const-btn { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        #const-btn.active { background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%); color: #000; }
+        #status { position: absolute; bottom: 20px; left: 20px; background: rgba(0,0,0,0.8); 
+                  color: white; padding: 10px 15px; border-radius: 8px; font-size: 14px; z-index: 1000; }
+    </style>
 </head>
 <body>
-
-<div id="controls">
-    <button onclick="changeSeason('summer')">Summer</button>
-    <button onclick="changeSeason('winter')">Winter</button>
-    <button onclick="changeSeason('spring')">Spring</button>
-    <button onclick="changeSeason('fall')">Fall</button>
-    <button onclick="toggleConstellations()">Toggle Constellations</button>
-</div>
-
-<a-scene embedded device-orientation-permission-ui="enabled: true">
-    <a-camera look-controls wasd-controls="enabled:false"></a-camera>
-    <a-sky id="star-sky" src="summer_solstice.jpeg"></a-sky>
-</a-scene>
-
-<script>
-const firebaseConfig = {
-  apiKey: "AIzaSyBUXUHdJ3oox3YSixJfoYuyRRrILe6n7ck",
-  authDomain: "classroom-vrplanetarium.firebaseapp.com",
-  databaseURL: "https://classroom-vrplanetarium-default-rtdb.firebaseio.com",
-  projectId: "classroom-vrplanetarium",
-  storageBucket: "classroom-vrplanetarium.firebasestorage.app",
-  messagingSenderId: "613751774262",
-  appId: "1:613751774262:web:79563f3843ef894e05cc97"
-};
-
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-
-const STAR_MAPS = {
-    summer: { normal: "summer_solstice.jpeg", const: "summer_solstice_constellations.jpeg" },
-    winter: { normal: "winter_solstice.jpeg", const: "winter_solstice_constellations.jpeg" },
-    spring: { normal: "spring_equinox.jpeg", const: "spring_equinox_constellations.jpeg" },
-    fall: { normal: "fall_equinox.jpeg", const: "fall_equinox_constellations.jpeg" }
-};
-
-let currentSeason = "summer";
-let constellationsVisible = false;
-
-function updateSky() {
-    const img = constellationsVisible 
-        ? STAR_MAPS[currentSeason].const 
-        : STAR_MAPS[currentSeason].normal;
-
-    document.getElementById("star-sky").setAttribute("src", img);
-
-    db.ref("classroom/currentView").set({
-        season: currentSeason,
-        constellations: constellationsVisible,
-        timestamp: Date.now()
-    });
-}
-
-function changeSeason(season) {
-    currentSeason = season;
-    updateSky();
-}
-
-function toggleConstellations() {
-    constellationsVisible = !constellationsVisible;
-    updateSky();
-}
-
-updateSky();
-</script>
-
+    <div id="controls">
+        <button class="season-btn" onclick="changeSeason('summer')">☀️ Summer</button>
+        <button class="season-btn" onclick="changeSeason('winter')">❄️ Winter</button>
+        <button class="season-btn" onclick="changeSeason('spring')">🌸 Spring</button>
+        <button class="season-btn" onclick="changeSeason('fall')">🍂 Fall</button>
+        <button id="const-btn" onclick="toggleConstellations()">Show Constellations</button>
+    </div>
+    <div id="status">
+        <div>Season: <span id="season-display">Summer</span></div>
+        <div>Constellations: <span id="const-display">Off</span></div>
+    </div>
+    <a-scene>
+        <a-camera look-controls wasd-controls="enabled: false"></a-camera>
+        <a-sky id="star-sky" src="summer_solstice.jpeg"></a-sky>
+    </a-scene>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBUXUHdJ3oox3YSixJfoYuyRRrILe6n7ck",
+            authDomain: "classroom-vrplanetarium.firebaseapp.com",
+            databaseURL: "https://classroom-vrplanetarium-default-rtdb.firebaseio.com",
+            projectId: "classroom-vrplanetarium",
+            storageBucket: "classroom-vrplanetarium.firebasestorage.app",
+            messagingSenderId: "613751774262",
+            appId: "1:613751774262:web:79563f3843ef894e05cc97"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const STAR_MAPS = {
+            summer: { normal: "summer_solstice.jpeg", const: "summer_solstice_constellations.jpeg" },
+            winter: { normal: "winter_solstice.jpeg", const: "winter_solstice_constellations.jpeg" },
+            spring: { normal: "spring_equinox.jpeg", const: "spring_equinox_constellations.jpeg" },
+            fall: { normal: "fall_equinox.jpeg", const: "fall_equinox_constellations.jpeg" }
+        };
+        let currentSeason = "summer";
+        let constellationsVisible = false;
+        function updateSky() {
+            const img = constellationsVisible ? STAR_MAPS[currentSeason].const : STAR_MAPS[currentSeason].normal;
+            document.getElementById("star-sky").setAttribute("src", img);
+            document.getElementById('season-display').textContent = currentSeason.charAt(0).toUpperCase() + currentSeason.slice(1);
+            document.getElementById('const-display').textContent = constellationsVisible ? 'On' : 'Off';
+            const constBtn = document.getElementById('const-btn');
+            constBtn.classList.toggle('active', constellationsVisible);
+            constBtn.textContent = constellationsVisible ? 'Hide Constellations' : 'Show Constellations';
+            db.ref("classroom/currentView").set({
+                season: currentSeason,
+                constellations: constellationsVisible,
+                timestamp: Date.now()
+            });
+        }
+        function changeSeason(season) { currentSeason = season; updateSky(); }
+        function toggleConstellations() { constellationsVisible = !constellationsVisible; updateSky(); }
+        updateSky();
+    </script>
 </body>
 </html>
