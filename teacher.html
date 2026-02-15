@@ -8,7 +8,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <style>
-        body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; background: #000; }
+        body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; background: #000; cursor: crosshair; }
         #controls { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; 
                     background: rgba(0,0,0,0.8); padding: 15px; border-radius: 10px; display: flex; 
                     gap: 10px; flex-wrap: wrap; justify-content: center; }
@@ -22,37 +22,6 @@
         #pointer-btn.active { background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%); }
         #status { position: absolute; bottom: 20px; left: 20px; background: rgba(0,0,0,0.8); 
                   color: white; padding: 10px 15px; border-radius: 8px; font-size: 14px; z-index: 1000; }
-        
-        #teacher-pointer {
-            position: absolute;
-            width: 40px;
-            height: 40px;
-            border: 4px solid #ff6b6b;
-            border-radius: 50%;
-            pointer-events: none;
-            display: none;
-            z-index: 999;
-            transform: translate(-50%, -50%);
-            box-shadow: 0 0 20px rgba(255, 107, 107, 0.8);
-            animation: pulse-border 1s infinite;
-        }
-        
-        #teacher-pointer::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 8px;
-            height: 8px;
-            background: #ff6b6b;
-            border-radius: 50%;
-        }
-        
-        @keyframes pulse-border {
-            0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-            50% { transform: translate(-50%, -50%) scale(1.2); opacity: 0.7; }
-        }
     </style>
 </head>
 <body>
@@ -69,13 +38,24 @@
         <div>Season: <span id="season-display">Summer</span></div>
         <div>Constellations: <span id="const-display">Off</span></div>
         <div>Pointer: <span id="pointer-display">Off</span></div>
+        <div style="font-size: 11px; margin-top: 5px; color: #90caf9;">Click on sky to place pointer</div>
     </div>
     
-    <div id="teacher-pointer"></div>
-    
-    <a-scene>
-        <a-camera id="teacher-camera" look-controls wasd-controls="enabled: false"></a-camera>
-        <a-sky id="star-sky" src="summer_solstice.jpeg" rotation="0 180 0"></a-sky>
+    <a-scene cursor="rayOrigin: mouse">
+        <a-camera look-controls wasd-controls="enabled: false"></a-camera>
+        <a-sky id="star-sky" src="summer_solstice.jpeg" rotation="0 180 0" class="clickable"></a-sky>
+        
+        <!-- 3D pointer marker in the sky -->
+        <a-entity id="pointer-marker" visible="false">
+            <a-ring color="#ff6b6b" radius-inner="0.8" radius-outer="1.2" 
+                    material="side: double; opacity: 0.9" 
+                    animation="property: scale; from: 1 1 1; to: 1.3 1.3 1.3; dur: 1000; loop: true; dir: alternate; easing: easeInOutQuad">
+            </a-ring>
+            <a-sphere color="#ff6b6b" radius="0.3" 
+                      material="opacity: 1; shader: flat"
+                      animation="property: components.material.material.opacity; from: 1; to: 0.4; dur: 1000; loop: true; dir: alternate">
+            </a-sphere>
+        </a-entity>
     </a-scene>
     
     <script>
@@ -102,25 +82,43 @@
         let currentSeason = "summer";
         let constellationsVisible = false;
         let pointerEnabled = false;
-        let camera;
+        let camera, scene, sky, pointerMarker;
         
         // Wait for scene to load
         document.querySelector('a-scene').addEventListener('loaded', function() {
-            camera = document.getElementById('teacher-camera');
+            scene = this;
+            camera = scene.camera.el;
+            sky = document.getElementById('star-sky');
+            pointerMarker = document.getElementById('pointer-marker');
             
-            // Broadcast camera rotation every 100ms when it changes
-            setInterval(broadcastCameraRotation, 100);
+            // Set up click handler for placing pointer
+            sky.addEventListener('click', handleSkyClick);
         });
         
-        function broadcastCameraRotation() {
-            if (!camera) return;
+        function handleSkyClick(evt) {
+            if (!pointerEnabled) return;
             
-            const rotation = camera.getAttribute('rotation');
+            // Get the intersection point where click hit the sky sphere
+            const intersection = evt.detail.intersection;
+            if (!intersection) return;
             
-            db.ref("classroom/cameraRotation").set({
-                x: rotation.x,
-                y: rotation.y,
-                z: rotation.z,
+            const point = intersection.point;
+            
+            // Place marker at that 3D position
+            pointerMarker.setAttribute('position', point);
+            pointerMarker.setAttribute('visible', true);
+            
+            // Look at camera so it faces outward
+            pointerMarker.object3D.lookAt(camera.object3D.position);
+            
+            console.log('📍 Pointer placed at:', point);
+            
+            // Broadcast 3D position to students
+            db.ref("classroom/pointer3D").set({
+                x: point.x,
+                y: point.y,
+                z: point.z,
+                visible: true,
                 timestamp: Date.now()
             });
         }
@@ -155,43 +153,19 @@
         function togglePointer() {
             pointerEnabled = !pointerEnabled;
             const btn = document.getElementById('pointer-btn');
-            const teacherPointer = document.getElementById('teacher-pointer');
             
             btn.classList.toggle('active', pointerEnabled);
-            btn.textContent = pointerEnabled ? 'Disable Pointer' : 'Enable Pointer';
+            btn.textContent = pointerEnabled ? 'Click Sky to Point' : 'Enable Pointer';
             document.getElementById('pointer-display').textContent = pointerEnabled ? 'On' : 'Off';
             
             if (!pointerEnabled) {
-                teacherPointer.style.display = 'none';
-                db.ref("classroom/pointer").set({
+                pointerMarker.setAttribute('visible', false);
+                db.ref("classroom/pointer3D").set({
                     visible: false,
                     timestamp: Date.now()
                 });
             }
         }
-        
-        // Track mouse movement and broadcast
-        document.addEventListener('mousemove', function(e) {
-            if (!pointerEnabled) return;
-            
-            const x = (e.clientX / window.innerWidth) * 100;
-            const y = (e.clientY / window.innerHeight) * 100;
-            
-            const teacherPointer = document.getElementById('teacher-pointer');
-            teacherPointer.style.display = 'block';
-            teacherPointer.style.left = e.clientX + 'px';
-            teacherPointer.style.top = e.clientY + 'px';
-            
-            if (!this.lastUpdate || Date.now() - this.lastUpdate > 50) {
-                db.ref("classroom/pointer").set({
-                    x: x,
-                    y: y,
-                    visible: true,
-                    timestamp: Date.now()
-                });
-                this.lastUpdate = Date.now();
-            }
-        });
         
         updateSky();
     </script>

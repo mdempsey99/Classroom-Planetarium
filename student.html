@@ -9,63 +9,43 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <style>
         body { margin: 0; display: flex; overflow: hidden; background: black; }
-        .scene-half { width: 50vw; height: 100vh; position: relative; }
-        
-        .student-pointer {
-            position: absolute;
-            width: 50px;
-            height: 50px;
-            border: 5px solid #ff6b6b;
-            border-radius: 50%;
-            pointer-events: none;
-            display: none;
-            z-index: 1000;
-            transform: translate(-50%, -50%);
-            box-shadow: 0 0 30px rgba(255, 107, 107, 1);
-            animation: pulse-pointer 1s infinite;
-        }
-        
-        .student-pointer::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 10px;
-            height: 10px;
-            background: #ff6b6b;
-            border-radius: 50%;
-            box-shadow: 0 0 15px rgba(255, 107, 107, 1);
-        }
-        
-        @keyframes pulse-pointer {
-            0%, 100% { 
-                transform: translate(-50%, -50%) scale(1); 
-                opacity: 1; 
-            }
-            50% { 
-                transform: translate(-50%, -50%) scale(1.3); 
-                opacity: 0.6; 
-            }
-        }
+        .scene-half { width: 50vw; height: 100vh; }
     </style>
 </head>
 <body>
-    <div class="scene-half" id="left-container">
-        <div class="student-pointer" id="pointer-left"></div>
-        <a-scene class="scene-half" embedded device-orientation-permission-ui="enabled: true">
-            <a-camera id="camera-left" look-controls="enabled: false" wasd-controls="enabled: false"></a-camera>
-            <a-sky id="skyLeft" src="summer_solstice.jpeg" rotation="0 180 0"></a-sky>
-        </a-scene>
-    </div>
+    <a-scene class="scene-half" embedded device-orientation-permission-ui="enabled: true">
+        <a-camera look-controls wasd-controls="enabled: false"></a-camera>
+        <a-sky id="skyLeft" src="summer_solstice.jpeg" rotation="0 180 0"></a-sky>
+        
+        <!-- 3D pointer marker -->
+        <a-entity id="pointer-left" visible="false">
+            <a-ring color="#ff6b6b" radius-inner="0.8" radius-outer="1.2" 
+                    material="side: double; opacity: 0.9" 
+                    animation="property: scale; from: 1 1 1; to: 1.3 1.3 1.3; dur: 1000; loop: true; dir: alternate; easing: easeInOutQuad">
+            </a-ring>
+            <a-sphere color="#ff6b6b" radius="0.3" 
+                      material="opacity: 1; shader: flat"
+                      animation="property: components.material.material.opacity; from: 1; to: 0.4; dur: 1000; loop: true; dir: alternate">
+            </a-sphere>
+        </a-entity>
+    </a-scene>
     
-    <div class="scene-half" id="right-container">
-        <div class="student-pointer" id="pointer-right"></div>
-        <a-scene class="scene-half" embedded>
-            <a-camera id="camera-right" look-controls="enabled: false" wasd-controls="enabled: false"></a-camera>
-            <a-sky id="skyRight" src="summer_solstice.jpeg" rotation="0 180 0"></a-sky>
-        </a-scene>
-    </div>
+    <a-scene class="scene-half" embedded>
+        <a-camera look-controls wasd-controls="enabled: false"></a-camera>
+        <a-sky id="skyRight" src="summer_solstice.jpeg" rotation="0 180 0"></a-sky>
+        
+        <!-- 3D pointer marker -->
+        <a-entity id="pointer-right" visible="false">
+            <a-ring color="#ff6b6b" radius-inner="0.8" radius-outer="1.2" 
+                    material="side: double; opacity: 0.9" 
+                    animation="property: scale; from: 1 1 1; to: 1.3 1.3 1.3; dur: 1000; loop: true; dir: alternate; easing: easeInOutQuad">
+            </a-ring>
+            <a-sphere color="#ff6b6b" radius="0.3" 
+                      material="opacity: 1; shader: flat"
+                      animation="property: components.material.material.opacity; from: 1; to: 0.4; dur: 1000; loop: true; dir: alternate">
+            </a-sphere>
+        </a-entity>
+    </a-scene>
     
     <script>
         const firebaseConfig = {
@@ -88,17 +68,22 @@
             fall: { normal: "fall_equinox.jpeg", const: "fall_equinox_constellations.jpeg" }
         };
         
-        let cameraLeft, cameraRight;
-        
-        // Wait for scenes to load
+        let pointerLeft, pointerRight, cameraLeft, cameraRight;
         let scenesLoaded = 0;
-        document.querySelectorAll('a-scene').forEach(scene => {
+        
+        // Wait for both scenes to load
+        document.querySelectorAll('a-scene').forEach((scene, index) => {
             scene.addEventListener('loaded', function() {
                 scenesLoaded++;
                 if (scenesLoaded === 2) {
-                    cameraLeft = document.getElementById('camera-left');
-                    cameraRight = document.getElementById('camera-right');
-                    console.log('✅ Student cameras ready');
+                    pointerLeft = document.getElementById('pointer-left');
+                    pointerRight = document.getElementById('pointer-right');
+                    
+                    // Get cameras for lookAt functionality
+                    cameraLeft = document.querySelectorAll('a-camera')[0];
+                    cameraRight = document.querySelectorAll('a-camera')[1];
+                    
+                    console.log('✅ Student scenes ready');
                 }
             });
         });
@@ -112,54 +97,31 @@
             document.getElementById("skyRight").setAttribute("src", img);
         });
         
-        // Listen for camera rotation changes from teacher
-        db.ref("classroom/cameraRotation").on("value", snap => {
-            const rotation = snap.val();
-            if (!rotation || !cameraLeft || !cameraRight) return;
-            
-            // Apply teacher's rotation to both student cameras
-            cameraLeft.setAttribute('rotation', {
-                x: rotation.x,
-                y: rotation.y,
-                z: rotation.z
-            });
-            
-            cameraRight.setAttribute('rotation', {
-                x: rotation.x,
-                y: rotation.y,
-                z: rotation.z
-            });
-            
-            console.log('📡 Camera synced:', rotation.y.toFixed(1) + '°');
-        });
-        
-        // Listen for pointer updates
-        db.ref("classroom/pointer").on("value", snap => {
+        // Listen for 3D pointer updates
+        db.ref("classroom/pointer3D").on("value", snap => {
             const pointer = snap.val();
-            if (!pointer) return;
-            
-            const pointerLeft = document.getElementById('pointer-left');
-            const pointerRight = document.getElementById('pointer-right');
-            const leftContainer = document.getElementById('left-container');
-            const rightContainer = document.getElementById('right-container');
+            if (!pointer || !pointerLeft || !pointerRight) return;
             
             if (pointer.visible) {
-                const leftX = (pointer.x / 100) * leftContainer.offsetWidth;
-                const leftY = (pointer.y / 100) * leftContainer.offsetHeight;
+                // Place markers at the 3D position broadcast by teacher
+                const position = { x: pointer.x, y: pointer.y, z: pointer.z };
                 
-                const rightX = (pointer.x / 100) * rightContainer.offsetWidth;
-                const rightY = (pointer.y / 100) * rightContainer.offsetHeight;
+                pointerLeft.setAttribute('position', position);
+                pointerLeft.setAttribute('visible', true);
                 
-                pointerLeft.style.display = 'block';
-                pointerLeft.style.left = leftX + 'px';
-                pointerLeft.style.top = leftY + 'px';
+                pointerRight.setAttribute('position', position);
+                pointerRight.setAttribute('visible', true);
                 
-                pointerRight.style.display = 'block';
-                pointerRight.style.left = rightX + 'px';
-                pointerRight.style.top = rightY + 'px';
+                // Make markers face outward (toward cameras)
+                if (cameraLeft && cameraRight) {
+                    pointerLeft.object3D.lookAt(cameraLeft.object3D.position);
+                    pointerRight.object3D.lookAt(cameraRight.object3D.position);
+                }
+                
+                console.log('📍 Pointer visible at:', position);
             } else {
-                pointerLeft.style.display = 'none';
-                pointerRight.style.display = 'none';
+                pointerLeft.setAttribute('visible', false);
+                pointerRight.setAttribute('visible', false);
             }
         });
     </script>
