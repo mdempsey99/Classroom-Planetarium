@@ -10,67 +10,54 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
 <style>
-body {
-    margin: 0;
-    overflow: hidden;
-    background: black;
-    display: flex;
-}
-.scene-half {
-    width: 50vw;
-    height: 100vh;
-}
+body { margin:0; display:flex; overflow:hidden; background:black; }
+.scene-half { width:50vw; height:100vh; }
 </style>
 </head>
-
 <body>
 
-<!-- LEFT EYE -->
-<a-scene class="scene-half" embedded device-orientation-permission-ui="enabled: true">
-    <a-camera look-controls wasd-controls="enabled: false"></a-camera>
-    <a-sky id="skyLeft" src="summer_solstice.png"></a-sky>
+<a-scene class="scene-half" embedded device-orientation-permission-ui="enabled:true">
+    <a-camera look-controls wasd-controls="enabled:false"></a-camera>
+    <a-sky id="skyLeft" src="summer_solstice.jpeg"></a-sky>
 </a-scene>
 
-<!-- RIGHT EYE -->
-<a-scene class="scene-half" embedded device-orientation-permission-ui="enabled: false">
-    <a-camera look-controls wasd-controls="enabled: false"></a-camera>
-    <a-sky id="skyRight" src="summer_solstice.png"></a-sky>
+<a-scene class="scene-half" embedded>
+    <a-camera look-controls wasd-controls="enabled:false"></a-camera>
+    <a-sky id="skyRight" src="summer_solstice.jpeg"></a-sky>
 </a-scene>
 
 <script>
-
 const firebaseConfig = {
-    apiKey: "YOUR_KEY",
-    authDomain: "YOUR_DOMAIN",
-    databaseURL: "YOUR_DB",
-    projectId: "YOUR_ID",
-    storageBucket: "YOUR_BUCKET",
-    messagingSenderId: "YOUR_MSG_ID",
-    appId: "YOUR_APP_ID"
-};
-
-const IMAGES = {
-    summer: { normal: "summer_solstice.png", const: "summer_solstice_constellations.png" },
-    winter: { normal: "winter_solstice.png", const: "winter_solstice_constellations.png" },
-    spring: { normal: "spring_equinox.png", const: "spring_equinox_constellations.png" },
-    fall: { normal: "fall_equinox.png", const: "fall_equinox_constellations.png" }
+  apiKey: "AIzaSyBUXUHdJ3oox3YSixJfoYuyRRrILe6n7ck",
+  authDomain: "classroom-vrplanetarium.firebaseapp.com",
+  databaseURL: "https://classroom-vrplanetarium-default-rtdb.firebaseio.com",
+  projectId: "classroom-vrplanetarium",
+  storageBucket: "classroom-vrplanetarium.firebasestorage.app",
+  messagingSenderId: "613751774262",
+  appId: "1:613751774262:web:79563f3843ef894e05cc97"
 };
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-db.ref('classroom/currentView').on('value', snap => {
+const IMAGES = {
+    summer: { normal: "summer_solstice.jpeg", const: "summer_solstice_constellations.jpeg" },
+    winter: { normal: "winter_solstice.jpeg", const: "winter_solstice_constellations.jpeg" },
+    spring: { normal: "spring_equinox.jpeg", const: "spring_equinox_constellations.jpeg" },
+    fall: { normal: "fall_equinox.jpeg", const: "fall_equinox_constellations.jpeg" }
+};
+
+db.ref("classroom/currentView").on("value", snap => {
     const state = snap.val();
-    if (state) {
-        const img = state.constellations
-            ? IMAGES[state.season].const
-            : IMAGES[state.season].normal;
+    if (!state) return;
 
-        document.getElementById('skyLeft').setAttribute('src', img);
-        document.getElementById('skyRight').setAttribute('src', img);
-    }
+    const img = state.constellations
+        ? IMAGES[state.season].const
+        : IMAGES[state.season].normal;
+
+    document.getElementById("skyLeft").setAttribute("src", img);
+    document.getElementById("skyRight").setAttribute("src", img);
 });
-
 </script>
 
 </body>
