@@ -9,8 +9,6 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <style>
         body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; background: #000; }
-        body.pointer-active { cursor: crosshair !important; }
-        body.pointer-active * { cursor: crosshair !important; }
         #controls { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; 
                     background: rgba(0,0,0,0.8); padding: 15px; border-radius: 10px; display: flex; 
                     gap: 10px; flex-wrap: wrap; justify-content: center; }
@@ -60,7 +58,6 @@
     </a-scene>
     
     <script>
-        // Firebase config
         const firebaseConfig = {
             apiKey: "AIzaSyBUXUHdJ3oox3YSixJfoYuyRRrILe6n7ck",
             authDomain: "classroom-vrplanetarium.firebaseapp.com",
@@ -81,89 +78,88 @@
             fall: { normal: "fall_equinox.jpeg", const: "fall_equinox_constellations.jpeg" }
         };
         
-        // State variables
         let currentSeason = "summer";
         let constellationsVisible = false;
         let pointerEnabled = false;
-        let camera, scene, sky, pointerMarker, raycaster, mouse;
+        let camera, scene, sky, pointerMarker, canvas, raycaster, mouse;
         
-        // Wait for scene to load
         document.querySelector('a-scene').addEventListener('loaded', function() {
             scene = this;
             camera = scene.camera;
             sky = document.getElementById('star-sky');
             pointerMarker = document.getElementById('pointer-marker');
+            canvas = scene.canvas;
             
-            // Create Three.js raycaster
+            // Create raycaster
             raycaster = new THREE.Raycaster();
             mouse = new THREE.Vector2();
             
-            // Set up button event listeners
             setupButtons();
             
-            // Add click listener to scene
-            scene.addEventListener('click', handleSceneClick);
+            // Add click listener directly to canvas
+            canvas.addEventListener('click', handleCanvasClick, false);
             
             console.log('✅ Teacher scene ready');
         });
         
         function setupButtons() {
-            // Season buttons
             document.querySelectorAll('.season-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
                     changeSeason(this.getAttribute('data-season'));
                 });
             });
             
-            // Constellation button
             document.getElementById('const-btn').addEventListener('click', toggleConstellations);
-            
-            // Pointer button
             document.getElementById('pointer-btn').addEventListener('click', togglePointer);
             
             console.log('✅ Buttons configured');
         }
         
-        function handleSceneClick(event) {
+        function handleCanvasClick(event) {
             if (!pointerEnabled) {
                 console.log('⚠️ Pointer not enabled');
                 return;
             }
             
-            // Calculate normalized mouse coordinates
-            const canvas = scene.canvas;
+            console.log('🖱️ Canvas clicked!');
+            
+            // Get canvas bounding rect
             const rect = canvas.getBoundingClientRect();
-            mouse.x = ((event.detail.intersection.point.x / rect.width) * 2 - 1);
-            mouse.y = -((event.detail.intersection.point.y / rect.height) * 2 + 1);
             
-            // Try to get intersection directly from event
-            if (event.detail && event.detail.intersection) {
-                const point = event.detail.intersection.point;
-                placePointer(point);
-                return;
-            }
+            // Calculate normalized device coordinates
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
             
-            // Fallback: manual raycasting
+            console.log('📐 Mouse coords:', mouse.x.toFixed(2), mouse.y.toFixed(2));
+            
+            // Cast ray from camera
             raycaster.setFromCamera(mouse, camera);
+            
+            // Get sky mesh
             const skyMesh = sky.object3D.children[0];
+            
+            // Check intersections
             const intersects = raycaster.intersectObject(skyMesh, true);
             
+            console.log('🎯 Intersections found:', intersects.length);
+            
             if (intersects.length > 0) {
-                placePointer(intersects[0].point);
+                const point = intersects[0].point;
+                placePointer(point);
             } else {
-                console.log('⚠️ No intersection');
+                console.log('❌ No intersection with sky');
             }
         }
         
         function placePointer(point) {
-            // Place marker
+            // Place marker locally
             pointerMarker.setAttribute('position', point);
             pointerMarker.setAttribute('visible', true);
             pointerMarker.object3D.lookAt(camera.position);
             
-            console.log('📍 Pointer at:', point);
+            console.log('📍 Pointer placed at:', point);
             
-            // Broadcast
+            // Broadcast to Firebase
             db.ref("classroom/pointer3D").set({
                 x: point.x,
                 y: point.y,
@@ -172,6 +168,8 @@
                 timestamp: Date.now()
             }).then(() => {
                 console.log('✅ Sent to Firebase');
+            }).catch(err => {
+                console.error('❌ Firebase error:', err);
             });
         }
         
@@ -195,13 +193,11 @@
         function changeSeason(season) { 
             currentSeason = season; 
             updateSky(); 
-            console.log('🌍 Season:', season);
         }
         
         function toggleConstellations() { 
             constellationsVisible = !constellationsVisible; 
             updateSky(); 
-            console.log('⭐ Constellations:', constellationsVisible);
         }
         
         function togglePointer() {
@@ -212,17 +208,18 @@
             btn.textContent = pointerEnabled ? 'Click Sky to Point' : 'Enable Pointer';
             document.getElementById('pointer-display').textContent = pointerEnabled ? 'On' : 'Off';
             
-            document.body.classList.toggle('pointer-active', pointerEnabled);
-            
-            if (!pointerEnabled) {
+            // Change canvas cursor directly
+            if (pointerEnabled) {
+                canvas.style.cursor = 'crosshair';
+                console.log('✅ Pointer ENABLED - Click on sky');
+            } else {
+                canvas.style.cursor = 'default';
                 pointerMarker.setAttribute('visible', false);
                 db.ref("classroom/pointer3D").set({ visible: false, timestamp: Date.now() });
+                console.log('❌ Pointer DISABLED');
             }
-            
-            console.log(pointerEnabled ? '✅ Pointer ENABLED - Click on sky' : '❌ Pointer DISABLED');
         }
         
-        // Initialize
         updateSky();
     </script>
 </body>
