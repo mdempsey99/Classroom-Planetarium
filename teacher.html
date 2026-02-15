@@ -9,6 +9,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <style>
         body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; background: #000; }
+        body.pointer-active { cursor: crosshair !important; }
         #controls { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; 
                     background: rgba(0,0,0,0.8); padding: 15px; border-radius: 10px; display: flex; 
                     gap: 10px; flex-wrap: wrap; justify-content: center; }
@@ -42,20 +43,7 @@
     </div>
     
     <a-scene>
-        <!-- Camera with mouse raycaster -->
-        <a-entity id="camera-rig">
-            <a-camera look-controls wasd-controls="enabled: false">
-                <!-- Mouse cursor that raycasts -->
-                <a-cursor 
-                    id="mouse-cursor"
-                    fuse="false"
-                    rayOrigin="mouse"
-                    visible="false">
-                </a-cursor>
-            </a-camera>
-        </a-entity>
-        
-        <!-- Sky sphere -->
+        <a-camera look-controls wasd-controls="enabled: false"></a-camera>
         <a-sky id="star-sky" src="summer_solstice.jpeg" rotation="0 180 0"></a-sky>
         
         <!-- 3D pointer marker -->
@@ -92,55 +80,78 @@
             fall: { normal: "fall_equinox.jpeg", const: "fall_equinox_constellations.jpeg" }
         };
         
+        // Initialize variables FIRST
         let currentSeason = "summer";
         let constellationsVisible = false;
         let pointerEnabled = false;
-        let camera, sky, pointerMarker, cursor;
+        let camera, scene, sky, pointerMarker, raycaster, mouse;
         
         document.querySelector('a-scene').addEventListener('loaded', function() {
-            camera = document.querySelector('a-camera');
+            scene = this;
+            camera = scene.camera;
             sky = document.getElementById('star-sky');
             pointerMarker = document.getElementById('pointer-marker');
-            cursor = document.getElementById('mouse-cursor');
             
-            // Listen for cursor click events
-            cursor.addEventListener('click', handleSkyClick);
+            // Create Three.js raycaster manually
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
             
-            console.log('✅ Teacher scene ready');
+            // Add click listener to canvas
+            scene.canvas.addEventListener('click', handleCanvasClick);
+            
+            console.log('✅ Teacher scene ready with manual raycaster');
         });
         
-        function handleSkyClick(evt) {
-            if (!pointerEnabled) return;
-            
-            // Get the intersection from the cursor
-            const intersection = cursor.components.raycaster.getIntersection(sky);
-            
-            if (!intersection) {
-                console.log('⚠️ No intersection found');
+        function handleCanvasClick(event) {
+            if (!pointerEnabled) {
+                console.log('⚠️ Pointer not enabled');
                 return;
             }
             
-            const point = intersection.point;
+            // Prevent drag behavior
+            event.preventDefault();
+            event.stopPropagation();
             
-            // Place marker locally
-            pointerMarker.setAttribute('position', point);
-            pointerMarker.setAttribute('visible', true);
-            pointerMarker.object3D.lookAt(camera.object3D.position);
+            // Calculate mouse position in normalized device coordinates (-1 to +1)
+            const canvas = scene.canvas;
+            const rect = canvas.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
             
-            console.log('📍 Pointer placed at:', point);
+            // Update raycaster
+            raycaster.setFromCamera(mouse, camera);
             
-            // Broadcast to students
-            db.ref("classroom/pointer3D").set({
-                x: point.x,
-                y: point.y,
-                z: point.z,
-                visible: true,
-                timestamp: Date.now()
-            }).then(() => {
-                console.log('✅ Sent to Firebase');
-            }).catch(err => {
-                console.error('❌ Firebase error:', err);
-            });
+            // Get sky mesh
+            const skyMesh = sky.object3D.children[0];
+            
+            // Check for intersections
+            const intersects = raycaster.intersectObject(skyMesh, true);
+            
+            if (intersects.length > 0) {
+                const point = intersects[0].point;
+                
+                // Place marker
+                pointerMarker.setAttribute('position', point);
+                pointerMarker.setAttribute('visible', true);
+                pointerMarker.object3D.lookAt(camera.position);
+                
+                console.log('📍 Pointer placed at:', point);
+                
+                // Broadcast to Firebase
+                db.ref("classroom/pointer3D").set({
+                    x: point.x,
+                    y: point.y,
+                    z: point.z,
+                    visible: true,
+                    timestamp: Date.now()
+                }).then(() => {
+                    console.log('✅ Sent to Firebase:', point);
+                }).catch(err => {
+                    console.error('❌ Firebase error:', err);
+                });
+            } else {
+                console.log('⚠️ No intersection with sky');
+            }
         }
         
         function updateSky() {
@@ -178,17 +189,18 @@
             btn.textContent = pointerEnabled ? 'Click Sky to Point' : 'Enable Pointer';
             document.getElementById('pointer-display').textContent = pointerEnabled ? 'On' : 'Off';
             
-            if (pointerEnabled) {
-                // Change cursor style to indicate pointer mode
-                document.body.style.cursor = 'crosshair';
-            } else {
-                document.body.style.cursor = 'default';
+            // Change cursor
+            document.body.classList.toggle('pointer-active', pointerEnabled);
+            
+            if (!pointerEnabled) {
                 pointerMarker.setAttribute('visible', false);
                 db.ref("classroom/pointer3D").set({
                     visible: false,
                     timestamp: Date.now()
                 });
             }
+            
+            console.log(pointerEnabled ? '✅ Pointer ENABLED' : '❌ Pointer DISABLED');
         }
         
         updateSky();
