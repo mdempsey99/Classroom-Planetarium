@@ -13,12 +13,47 @@
                     background: rgba(0,0,0,0.8); padding: 15px; border-radius: 10px; display: flex; 
                     gap: 10px; flex-wrap: wrap; justify-content: center; }
         button { padding: 12px 20px; margin: 0; font-weight: bold; border: none; border-radius: 8px; 
-                 cursor: pointer; color: white; font-size: 14px; }
+                 cursor: pointer; color: white; font-size: 14px; transition: all 0.3s ease; }
+        button:hover { transform: scale(1.05); }
         .season-btn { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
         #const-btn { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
         #const-btn.active { background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%); color: #000; }
+        #pointer-btn { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+        #pointer-btn.active { background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%); }
         #status { position: absolute; bottom: 20px; left: 20px; background: rgba(0,0,0,0.8); 
                   color: white; padding: 10px 15px; border-radius: 8px; font-size: 14px; z-index: 1000; }
+        
+        /* Teacher's local pointer preview */
+        #teacher-pointer {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #ff6b6b;
+            border-radius: 50%;
+            pointer-events: none;
+            display: none;
+            z-index: 999;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 20px rgba(255, 107, 107, 0.8);
+            animation: pulse-border 1s infinite;
+        }
+        
+        #teacher-pointer::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 8px;
+            height: 8px;
+            background: #ff6b6b;
+            border-radius: 50%;
+        }
+        
+        @keyframes pulse-border {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+            50% { transform: translate(-50%, -50%) scale(1.2); opacity: 0.7; }
+        }
     </style>
 </head>
 <body>
@@ -28,15 +63,23 @@
         <button class="season-btn" onclick="changeSeason('spring')">🌸 Spring</button>
         <button class="season-btn" onclick="changeSeason('fall')">🍂 Fall</button>
         <button id="const-btn" onclick="toggleConstellations()">Show Constellations</button>
+        <button id="pointer-btn" onclick="togglePointer()">Enable Pointer</button>
     </div>
+    
     <div id="status">
         <div>Season: <span id="season-display">Summer</span></div>
         <div>Constellations: <span id="const-display">Off</span></div>
+        <div>Pointer: <span id="pointer-display">Off</span></div>
     </div>
+    
+    <!-- Teacher's pointer preview -->
+    <div id="teacher-pointer"></div>
+    
     <a-scene>
         <a-camera look-controls wasd-controls="enabled: false"></a-camera>
-        <a-sky id="star-sky" src="summer_solstice.jpeg"></a-sky>
+        <a-sky id="star-sky" src="summer_solstice.jpeg" rotation="0 180 0"></a-sky>
     </a-scene>
+    
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyBUXUHdJ3oox3YSixJfoYuyRRrILe6n7ck",
@@ -47,32 +90,94 @@
             messagingSenderId: "613751774262",
             appId: "1:613751774262:web:79563f3843ef894e05cc97"
         };
+        
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
+        
         const STAR_MAPS = {
             summer: { normal: "summer_solstice.jpeg", const: "summer_solstice_constellations.jpeg" },
             winter: { normal: "winter_solstice.jpeg", const: "winter_solstice_constellations.jpeg" },
             spring: { normal: "spring_equinox.jpeg", const: "spring_equinox_constellations.jpeg" },
             fall: { normal: "fall_equinox.jpeg", const: "fall_equinox_constellations.jpeg" }
         };
+        
         let currentSeason = "summer";
         let constellationsVisible = false;
+        let pointerEnabled = false;
+        
         function updateSky() {
             const img = constellationsVisible ? STAR_MAPS[currentSeason].const : STAR_MAPS[currentSeason].normal;
             document.getElementById("star-sky").setAttribute("src", img);
             document.getElementById('season-display').textContent = currentSeason.charAt(0).toUpperCase() + currentSeason.slice(1);
             document.getElementById('const-display').textContent = constellationsVisible ? 'On' : 'Off';
+            
             const constBtn = document.getElementById('const-btn');
             constBtn.classList.toggle('active', constellationsVisible);
             constBtn.textContent = constellationsVisible ? 'Hide Constellations' : 'Show Constellations';
+            
             db.ref("classroom/currentView").set({
                 season: currentSeason,
                 constellations: constellationsVisible,
                 timestamp: Date.now()
             });
         }
-        function changeSeason(season) { currentSeason = season; updateSky(); }
-        function toggleConstellations() { constellationsVisible = !constellationsVisible; updateSky(); }
+        
+        function changeSeason(season) { 
+            currentSeason = season; 
+            updateSky(); 
+        }
+        
+        function toggleConstellations() { 
+            constellationsVisible = !constellationsVisible; 
+            updateSky(); 
+        }
+        
+        function togglePointer() {
+            pointerEnabled = !pointerEnabled;
+            const btn = document.getElementById('pointer-btn');
+            const teacherPointer = document.getElementById('teacher-pointer');
+            
+            btn.classList.toggle('active', pointerEnabled);
+            btn.textContent = pointerEnabled ? 'Disable Pointer' : 'Enable Pointer';
+            document.getElementById('pointer-display').textContent = pointerEnabled ? 'On' : 'Off';
+            
+            if (!pointerEnabled) {
+                teacherPointer.style.display = 'none';
+                // Hide pointer for all students
+                db.ref("classroom/pointer").set({
+                    visible: false,
+                    timestamp: Date.now()
+                });
+            }
+        }
+        
+        // Track mouse movement and broadcast to students
+        document.addEventListener('mousemove', function(e) {
+            if (!pointerEnabled) return;
+            
+            // Calculate position as percentage of screen
+            const x = (e.clientX / window.innerWidth) * 100;
+            const y = (e.clientY / window.innerHeight) * 100;
+            
+            // Show teacher's local preview
+            const teacherPointer = document.getElementById('teacher-pointer');
+            teacherPointer.style.display = 'block';
+            teacherPointer.style.left = e.clientX + 'px';
+            teacherPointer.style.top = e.clientY + 'px';
+            
+            // Broadcast to students (throttled)
+            if (!this.lastUpdate || Date.now() - this.lastUpdate > 50) { // Update every 50ms
+                db.ref("classroom/pointer").set({
+                    x: x,
+                    y: y,
+                    visible: true,
+                    timestamp: Date.now()
+                });
+                this.lastUpdate = Date.now();
+            }
+        });
+        
+        // Initialize
         updateSky();
     </script>
 </body>

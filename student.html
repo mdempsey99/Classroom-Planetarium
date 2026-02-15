@@ -9,18 +9,67 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <style>
         body { margin: 0; display: flex; overflow: hidden; background: black; }
-        .scene-half { width: 50vw; height: 100vh; }
+        .scene-half { width: 50vw; height: 100vh; position: relative; }
+        
+        /* Pointer that appears on both scenes */
+        .student-pointer {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            border: 5px solid #ff6b6b;
+            border-radius: 50%;
+            pointer-events: none;
+            display: none;
+            z-index: 1000;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 30px rgba(255, 107, 107, 1);
+            animation: pulse-pointer 1s infinite;
+        }
+        
+        .student-pointer::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 10px;
+            height: 10px;
+            background: #ff6b6b;
+            border-radius: 50%;
+            box-shadow: 0 0 15px rgba(255, 107, 107, 1);
+        }
+        
+        @keyframes pulse-pointer {
+            0%, 100% { 
+                transform: translate(-50%, -50%) scale(1); 
+                opacity: 1; 
+            }
+            50% { 
+                transform: translate(-50%, -50%) scale(1.3); 
+                opacity: 0.6; 
+            }
+        }
     </style>
 </head>
 <body>
-    <a-scene class="scene-half" embedded device-orientation-permission-ui="enabled: true">
-        <a-camera look-controls wasd-controls="enabled: false"></a-camera>
-        <a-sky id="skyLeft" src="summer_solstice.jpeg"></a-sky>
-    </a-scene>
-    <a-scene class="scene-half" embedded>
-        <a-camera look-controls wasd-controls="enabled: false"></a-camera>
-        <a-sky id="skyRight" src="summer_solstice.jpeg"></a-sky>
-    </a-scene>
+    <!-- Left eye scene -->
+    <div class="scene-half" id="left-container">
+        <div class="student-pointer" id="pointer-left"></div>
+        <a-scene class="scene-half" embedded device-orientation-permission-ui="enabled: true">
+            <a-camera look-controls wasd-controls="enabled: false"></a-camera>
+            <a-sky id="skyLeft" src="summer_solstice.jpeg" rotation="0 180 0"></a-sky>
+        </a-scene>
+    </div>
+    
+    <!-- Right eye scene -->
+    <div class="scene-half" id="right-container">
+        <div class="student-pointer" id="pointer-right"></div>
+        <a-scene class="scene-half" embedded>
+            <a-camera look-controls wasd-controls="enabled: false"></a-camera>
+            <a-sky id="skyRight" src="summer_solstice.jpeg" rotation="0 180 0"></a-sky>
+        </a-scene>
+    </div>
+    
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyBUXUHdJ3oox3YSixJfoYuyRRrILe6n7ck",
@@ -31,20 +80,58 @@
             messagingSenderId: "613751774262",
             appId: "1:613751774262:web:79563f3843ef894e05cc97"
         };
+        
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
+        
         const IMAGES = {
             summer: { normal: "summer_solstice.jpeg", const: "summer_solstice_constellations.jpeg" },
             winter: { normal: "winter_solstice.jpeg", const: "winter_solstice_constellations.jpeg" },
             spring: { normal: "spring_equinox.jpeg", const: "spring_equinox_constellations.jpeg" },
             fall: { normal: "fall_equinox.jpeg", const: "fall_equinox_constellations.jpeg" }
         };
+        
+        // Listen for sky changes
         db.ref("classroom/currentView").on("value", snap => {
             const state = snap.val();
             if (!state) return;
             const img = state.constellations ? IMAGES[state.season].const : IMAGES[state.season].normal;
             document.getElementById("skyLeft").setAttribute("src", img);
             document.getElementById("skyRight").setAttribute("src", img);
+        });
+        
+        // Listen for pointer updates
+        db.ref("classroom/pointer").on("value", snap => {
+            const pointer = snap.val();
+            if (!pointer) return;
+            
+            const pointerLeft = document.getElementById('pointer-left');
+            const pointerRight = document.getElementById('pointer-right');
+            const leftContainer = document.getElementById('left-container');
+            const rightContainer = document.getElementById('right-container');
+            
+            if (pointer.visible) {
+                // Convert percentage to pixels for left eye
+                const leftX = (pointer.x / 100) * leftContainer.offsetWidth;
+                const leftY = (pointer.y / 100) * leftContainer.offsetHeight;
+                
+                // Convert percentage to pixels for right eye
+                const rightX = (pointer.x / 100) * rightContainer.offsetWidth;
+                const rightY = (pointer.y / 100) * rightContainer.offsetHeight;
+                
+                // Show and position pointers
+                pointerLeft.style.display = 'block';
+                pointerLeft.style.left = leftX + 'px';
+                pointerLeft.style.top = leftY + 'px';
+                
+                pointerRight.style.display = 'block';
+                pointerRight.style.left = rightX + 'px';
+                pointerRight.style.top = rightY + 'px';
+            } else {
+                // Hide pointers
+                pointerLeft.style.display = 'none';
+                pointerRight.style.display = 'none';
+            }
         });
     </script>
 </body>
