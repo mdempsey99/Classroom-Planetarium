@@ -10,6 +10,7 @@
     <style>
         body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; background: #000; }
         body.pointer-active { cursor: crosshair !important; }
+        body.pointer-active * { cursor: crosshair !important; }
         #controls { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; 
                     background: rgba(0,0,0,0.8); padding: 15px; border-radius: 10px; display: flex; 
                     gap: 10px; flex-wrap: wrap; justify-content: center; }
@@ -27,26 +28,25 @@
 </head>
 <body>
     <div id="controls">
-        <button class="season-btn" onclick="changeSeason('summer')">☀️ Summer</button>
-        <button class="season-btn" onclick="changeSeason('winter')">❄️ Winter</button>
-        <button class="season-btn" onclick="changeSeason('spring')">🌸 Spring</button>
-        <button class="season-btn" onclick="changeSeason('fall')">🍂 Fall</button>
-        <button id="const-btn" onclick="toggleConstellations()">Show Constellations</button>
-        <button id="pointer-btn" onclick="togglePointer()">Enable Pointer</button>
+        <button class="season-btn" data-season="summer">☀️ Summer</button>
+        <button class="season-btn" data-season="winter">❄️ Winter</button>
+        <button class="season-btn" data-season="spring">🌸 Spring</button>
+        <button class="season-btn" data-season="fall">🍂 Fall</button>
+        <button id="const-btn">Show Constellations</button>
+        <button id="pointer-btn">Enable Pointer</button>
     </div>
     
     <div id="status">
         <div>Season: <span id="season-display">Summer</span></div>
         <div>Constellations: <span id="const-display">Off</span></div>
         <div>Pointer: <span id="pointer-display">Off</span></div>
-        <div style="font-size: 11px; margin-top: 5px; color: #90caf9;">Click on sky to place pointer</div>
+        <div style="font-size: 11px; margin-top: 5px; color: #90caf9;">Enable pointer, then click sky</div>
     </div>
     
     <a-scene>
         <a-camera look-controls wasd-controls="enabled: false"></a-camera>
         <a-sky id="star-sky" src="summer_solstice.jpeg" rotation="0 180 0"></a-sky>
         
-        <!-- 3D pointer marker -->
         <a-entity id="pointer-marker" visible="false">
             <a-ring color="#ff6b6b" radius-inner="0.8" radius-outer="1.2" 
                     material="side: double; opacity: 0.9" 
@@ -60,6 +60,7 @@
     </a-scene>
     
     <script>
+        // Firebase config
         const firebaseConfig = {
             apiKey: "AIzaSyBUXUHdJ3oox3YSixJfoYuyRRrILe6n7ck",
             authDomain: "classroom-vrplanetarium.firebaseapp.com",
@@ -80,78 +81,98 @@
             fall: { normal: "fall_equinox.jpeg", const: "fall_equinox_constellations.jpeg" }
         };
         
-        // Initialize variables FIRST
+        // State variables
         let currentSeason = "summer";
         let constellationsVisible = false;
         let pointerEnabled = false;
         let camera, scene, sky, pointerMarker, raycaster, mouse;
         
+        // Wait for scene to load
         document.querySelector('a-scene').addEventListener('loaded', function() {
             scene = this;
             camera = scene.camera;
             sky = document.getElementById('star-sky');
             pointerMarker = document.getElementById('pointer-marker');
             
-            // Create Three.js raycaster manually
+            // Create Three.js raycaster
             raycaster = new THREE.Raycaster();
             mouse = new THREE.Vector2();
             
-            // Add click listener to canvas
-            scene.canvas.addEventListener('click', handleCanvasClick);
+            // Set up button event listeners
+            setupButtons();
             
-            console.log('✅ Teacher scene ready with manual raycaster');
+            // Add click listener to scene
+            scene.addEventListener('click', handleSceneClick);
+            
+            console.log('✅ Teacher scene ready');
         });
         
-        function handleCanvasClick(event) {
+        function setupButtons() {
+            // Season buttons
+            document.querySelectorAll('.season-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    changeSeason(this.getAttribute('data-season'));
+                });
+            });
+            
+            // Constellation button
+            document.getElementById('const-btn').addEventListener('click', toggleConstellations);
+            
+            // Pointer button
+            document.getElementById('pointer-btn').addEventListener('click', togglePointer);
+            
+            console.log('✅ Buttons configured');
+        }
+        
+        function handleSceneClick(event) {
             if (!pointerEnabled) {
                 console.log('⚠️ Pointer not enabled');
                 return;
             }
             
-            // Prevent drag behavior
-            event.preventDefault();
-            event.stopPropagation();
-            
-            // Calculate mouse position in normalized device coordinates (-1 to +1)
+            // Calculate normalized mouse coordinates
             const canvas = scene.canvas;
             const rect = canvas.getBoundingClientRect();
-            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+            mouse.x = ((event.detail.intersection.point.x / rect.width) * 2 - 1);
+            mouse.y = -((event.detail.intersection.point.y / rect.height) * 2 + 1);
             
-            // Update raycaster
+            // Try to get intersection directly from event
+            if (event.detail && event.detail.intersection) {
+                const point = event.detail.intersection.point;
+                placePointer(point);
+                return;
+            }
+            
+            // Fallback: manual raycasting
             raycaster.setFromCamera(mouse, camera);
-            
-            // Get sky mesh
             const skyMesh = sky.object3D.children[0];
-            
-            // Check for intersections
             const intersects = raycaster.intersectObject(skyMesh, true);
             
             if (intersects.length > 0) {
-                const point = intersects[0].point;
-                
-                // Place marker
-                pointerMarker.setAttribute('position', point);
-                pointerMarker.setAttribute('visible', true);
-                pointerMarker.object3D.lookAt(camera.position);
-                
-                console.log('📍 Pointer placed at:', point);
-                
-                // Broadcast to Firebase
-                db.ref("classroom/pointer3D").set({
-                    x: point.x,
-                    y: point.y,
-                    z: point.z,
-                    visible: true,
-                    timestamp: Date.now()
-                }).then(() => {
-                    console.log('✅ Sent to Firebase:', point);
-                }).catch(err => {
-                    console.error('❌ Firebase error:', err);
-                });
+                placePointer(intersects[0].point);
             } else {
-                console.log('⚠️ No intersection with sky');
+                console.log('⚠️ No intersection');
             }
+        }
+        
+        function placePointer(point) {
+            // Place marker
+            pointerMarker.setAttribute('position', point);
+            pointerMarker.setAttribute('visible', true);
+            pointerMarker.object3D.lookAt(camera.position);
+            
+            console.log('📍 Pointer at:', point);
+            
+            // Broadcast
+            db.ref("classroom/pointer3D").set({
+                x: point.x,
+                y: point.y,
+                z: point.z,
+                visible: true,
+                timestamp: Date.now()
+            }).then(() => {
+                console.log('✅ Sent to Firebase');
+            });
         }
         
         function updateSky() {
@@ -174,11 +195,13 @@
         function changeSeason(season) { 
             currentSeason = season; 
             updateSky(); 
+            console.log('🌍 Season:', season);
         }
         
         function toggleConstellations() { 
             constellationsVisible = !constellationsVisible; 
             updateSky(); 
+            console.log('⭐ Constellations:', constellationsVisible);
         }
         
         function togglePointer() {
@@ -189,20 +212,17 @@
             btn.textContent = pointerEnabled ? 'Click Sky to Point' : 'Enable Pointer';
             document.getElementById('pointer-display').textContent = pointerEnabled ? 'On' : 'Off';
             
-            // Change cursor
             document.body.classList.toggle('pointer-active', pointerEnabled);
             
             if (!pointerEnabled) {
                 pointerMarker.setAttribute('visible', false);
-                db.ref("classroom/pointer3D").set({
-                    visible: false,
-                    timestamp: Date.now()
-                });
+                db.ref("classroom/pointer3D").set({ visible: false, timestamp: Date.now() });
             }
             
-            console.log(pointerEnabled ? '✅ Pointer ENABLED' : '❌ Pointer DISABLED');
+            console.log(pointerEnabled ? '✅ Pointer ENABLED - Click on sky' : '❌ Pointer DISABLED');
         }
         
+        // Initialize
         updateSky();
     </script>
 </body>
