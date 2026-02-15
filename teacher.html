@@ -23,7 +23,6 @@
         #status { position: absolute; bottom: 20px; left: 20px; background: rgba(0,0,0,0.8); 
                   color: white; padding: 10px 15px; border-radius: 8px; font-size: 14px; z-index: 1000; }
         
-        /* Teacher's local pointer preview */
         #teacher-pointer {
             position: absolute;
             width: 40px;
@@ -72,11 +71,10 @@
         <div>Pointer: <span id="pointer-display">Off</span></div>
     </div>
     
-    <!-- Teacher's pointer preview -->
     <div id="teacher-pointer"></div>
     
     <a-scene>
-        <a-camera look-controls wasd-controls="enabled: false"></a-camera>
+        <a-camera id="teacher-camera" look-controls wasd-controls="enabled: false"></a-camera>
         <a-sky id="star-sky" src="summer_solstice.jpeg" rotation="0 180 0"></a-sky>
     </a-scene>
     
@@ -104,6 +102,28 @@
         let currentSeason = "summer";
         let constellationsVisible = false;
         let pointerEnabled = false;
+        let camera;
+        
+        // Wait for scene to load
+        document.querySelector('a-scene').addEventListener('loaded', function() {
+            camera = document.getElementById('teacher-camera');
+            
+            // Broadcast camera rotation every 100ms when it changes
+            setInterval(broadcastCameraRotation, 100);
+        });
+        
+        function broadcastCameraRotation() {
+            if (!camera) return;
+            
+            const rotation = camera.getAttribute('rotation');
+            
+            db.ref("classroom/cameraRotation").set({
+                x: rotation.x,
+                y: rotation.y,
+                z: rotation.z,
+                timestamp: Date.now()
+            });
+        }
         
         function updateSky() {
             const img = constellationsVisible ? STAR_MAPS[currentSeason].const : STAR_MAPS[currentSeason].normal;
@@ -143,7 +163,6 @@
             
             if (!pointerEnabled) {
                 teacherPointer.style.display = 'none';
-                // Hide pointer for all students
                 db.ref("classroom/pointer").set({
                     visible: false,
                     timestamp: Date.now()
@@ -151,22 +170,19 @@
             }
         }
         
-        // Track mouse movement and broadcast to students
+        // Track mouse movement and broadcast
         document.addEventListener('mousemove', function(e) {
             if (!pointerEnabled) return;
             
-            // Calculate position as percentage of screen
             const x = (e.clientX / window.innerWidth) * 100;
             const y = (e.clientY / window.innerHeight) * 100;
             
-            // Show teacher's local preview
             const teacherPointer = document.getElementById('teacher-pointer');
             teacherPointer.style.display = 'block';
             teacherPointer.style.left = e.clientX + 'px';
             teacherPointer.style.top = e.clientY + 'px';
             
-            // Broadcast to students (throttled)
-            if (!this.lastUpdate || Date.now() - this.lastUpdate > 50) { // Update every 50ms
+            if (!this.lastUpdate || Date.now() - this.lastUpdate > 50) {
                 db.ref("classroom/pointer").set({
                     x: x,
                     y: y,
@@ -177,7 +193,6 @@
             }
         });
         
-        // Initialize
         updateSky();
     </script>
 </body>

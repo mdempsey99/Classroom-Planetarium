@@ -11,7 +11,6 @@
         body { margin: 0; display: flex; overflow: hidden; background: black; }
         .scene-half { width: 50vw; height: 100vh; position: relative; }
         
-        /* Pointer that appears on both scenes */
         .student-pointer {
             position: absolute;
             width: 50px;
@@ -52,20 +51,18 @@
     </style>
 </head>
 <body>
-    <!-- Left eye scene -->
     <div class="scene-half" id="left-container">
         <div class="student-pointer" id="pointer-left"></div>
         <a-scene class="scene-half" embedded device-orientation-permission-ui="enabled: true">
-            <a-camera look-controls wasd-controls="enabled: false"></a-camera>
+            <a-camera id="camera-left" look-controls="enabled: false" wasd-controls="enabled: false"></a-camera>
             <a-sky id="skyLeft" src="summer_solstice.jpeg" rotation="0 180 0"></a-sky>
         </a-scene>
     </div>
     
-    <!-- Right eye scene -->
     <div class="scene-half" id="right-container">
         <div class="student-pointer" id="pointer-right"></div>
         <a-scene class="scene-half" embedded>
-            <a-camera look-controls wasd-controls="enabled: false"></a-camera>
+            <a-camera id="camera-right" look-controls="enabled: false" wasd-controls="enabled: false"></a-camera>
             <a-sky id="skyRight" src="summer_solstice.jpeg" rotation="0 180 0"></a-sky>
         </a-scene>
     </div>
@@ -91,6 +88,21 @@
             fall: { normal: "fall_equinox.jpeg", const: "fall_equinox_constellations.jpeg" }
         };
         
+        let cameraLeft, cameraRight;
+        
+        // Wait for scenes to load
+        let scenesLoaded = 0;
+        document.querySelectorAll('a-scene').forEach(scene => {
+            scene.addEventListener('loaded', function() {
+                scenesLoaded++;
+                if (scenesLoaded === 2) {
+                    cameraLeft = document.getElementById('camera-left');
+                    cameraRight = document.getElementById('camera-right');
+                    console.log('✅ Student cameras ready');
+                }
+            });
+        });
+        
         // Listen for sky changes
         db.ref("classroom/currentView").on("value", snap => {
             const state = snap.val();
@@ -98,6 +110,27 @@
             const img = state.constellations ? IMAGES[state.season].const : IMAGES[state.season].normal;
             document.getElementById("skyLeft").setAttribute("src", img);
             document.getElementById("skyRight").setAttribute("src", img);
+        });
+        
+        // Listen for camera rotation changes from teacher
+        db.ref("classroom/cameraRotation").on("value", snap => {
+            const rotation = snap.val();
+            if (!rotation || !cameraLeft || !cameraRight) return;
+            
+            // Apply teacher's rotation to both student cameras
+            cameraLeft.setAttribute('rotation', {
+                x: rotation.x,
+                y: rotation.y,
+                z: rotation.z
+            });
+            
+            cameraRight.setAttribute('rotation', {
+                x: rotation.x,
+                y: rotation.y,
+                z: rotation.z
+            });
+            
+            console.log('📡 Camera synced:', rotation.y.toFixed(1) + '°');
         });
         
         // Listen for pointer updates
@@ -111,15 +144,12 @@
             const rightContainer = document.getElementById('right-container');
             
             if (pointer.visible) {
-                // Convert percentage to pixels for left eye
                 const leftX = (pointer.x / 100) * leftContainer.offsetWidth;
                 const leftY = (pointer.y / 100) * leftContainer.offsetHeight;
                 
-                // Convert percentage to pixels for right eye
                 const rightX = (pointer.x / 100) * rightContainer.offsetWidth;
                 const rightY = (pointer.y / 100) * rightContainer.offsetHeight;
                 
-                // Show and position pointers
                 pointerLeft.style.display = 'block';
                 pointerLeft.style.left = leftX + 'px';
                 pointerLeft.style.top = leftY + 'px';
@@ -128,7 +158,6 @@
                 pointerRight.style.left = rightX + 'px';
                 pointerRight.style.top = rightY + 'px';
             } else {
-                // Hide pointers
                 pointerLeft.style.display = 'none';
                 pointerRight.style.display = 'none';
             }
