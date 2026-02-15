@@ -43,9 +43,11 @@
     
     <a-scene cursor="rayOrigin: mouse">
         <a-camera look-controls wasd-controls="enabled: false"></a-camera>
+        
+        <!-- Sky with SAME rotation as student -->
         <a-sky id="star-sky" src="summer_solstice.jpeg" rotation="0 180 0" class="clickable"></a-sky>
         
-        <!-- 3D pointer marker in the sky -->
+        <!-- 3D pointer marker -->
         <a-entity id="pointer-marker" visible="false">
             <a-ring color="#ff6b6b" radius-inner="0.8" radius-outer="1.2" 
                     material="side: double; opacity: 0.9" 
@@ -84,36 +86,32 @@
         let pointerEnabled = false;
         let camera, scene, sky, pointerMarker;
         
-        // Wait for scene to load
         document.querySelector('a-scene').addEventListener('loaded', function() {
             scene = this;
             camera = scene.camera.el;
             sky = document.getElementById('star-sky');
             pointerMarker = document.getElementById('pointer-marker');
             
-            // Set up click handler for placing pointer
             sky.addEventListener('click', handleSkyClick);
+            console.log('✅ Teacher scene ready');
         });
         
         function handleSkyClick(evt) {
             if (!pointerEnabled) return;
             
-            // Get the intersection point where click hit the sky sphere
             const intersection = evt.detail.intersection;
             if (!intersection) return;
             
             const point = intersection.point;
             
-            // Place marker at that 3D position
+            // Place marker locally
             pointerMarker.setAttribute('position', point);
             pointerMarker.setAttribute('visible', true);
-            
-            // Look at camera so it faces outward
             pointerMarker.object3D.lookAt(camera.object3D.position);
             
-            console.log('📍 Pointer placed at:', point);
+            console.log('📍 Pointer at:', point);
             
-            // Broadcast 3D position to students
+            // Broadcast to students
             db.ref("classroom/pointer3D").set({
                 x: point.x,
                 y: point.y,
