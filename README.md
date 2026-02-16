@@ -1,1 +1,5 @@
-I need to update this.
+In this repository are two html files. 
+Teacher.html is for a class teacher or group docent to use.  It opens as a control panel with a view of the sky - I think it defaults to the summer solstice.  You can toggle between solstice and euquinox views and turn off and on the constellations.  You can also turn on an pointer that you can move to locations by pointing and clicking.  
+Student.html is meant to funciton as a stereo viewer using inexpensive VR viewers like google cardboard.  It should hopefully give an immersive experence (in landscape mode, in a viewer with full screen turned on).  It should be device independent.  When the teacher site is updated, the student site updates automatically to show the sky view with or without constellations and the position of the pointer.
+The equirectangular images used for the starfields were downloaded from Stellarium.  They need to be cleaned and updated.
+I will also post a second file studentm.html which will be a monovision viewer that does not need google classes.
