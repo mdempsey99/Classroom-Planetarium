@@ -22,7 +22,6 @@
         #pointer-btn.active { background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%); }
         #status { position: absolute; bottom: 20px; left: 20px; background: rgba(0,0,0,0.8); 
                   color: white; padding: 10px 15px; border-radius: 8px; font-size: 14px; z-index: 1000; }
-        .key-hint { color: #FFD700; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -32,7 +31,7 @@
         <button class="season-btn" data-season="spring">🌸 Spring</button>
         <button class="season-btn" data-season="fall">🍂 Fall</button>
         <button id="const-btn">Show Constellations</button>
-        <button id="pointer-btn">Enable Pointer</button>
+        <button id="pointer-btn">Test Pointer</button>
     </div>
     
     <div id="status">
@@ -40,7 +39,7 @@
         <div>Constellations: <span id="const-display">Off</span></div>
         <div>Pointer: <span id="pointer-display">Off</span></div>
         <div style="font-size: 11px; margin-top: 5px; color: #90caf9;">
-            Enable pointer, look at star, press <span class="key-hint">SPACEBAR</span> to point
+            Click "Test Pointer" to place marker directly ahead
         </div>
     </div>
     
@@ -48,12 +47,13 @@
         <a-camera look-controls wasd-controls="enabled: false"></a-camera>
         <a-sky id="star-sky" src="summer_solstice.jpeg" rotation="0 180 0"></a-sky>
         
-        <a-entity id="pointer-marker" visible="false">
-            <a-ring color="#ff6b6b" radius-inner="0.8" radius-outer="1.2" 
+        <!-- Test pointer - placed at fixed position -->
+        <a-entity id="pointer-marker" position="0 0 -100" visible="false">
+            <a-ring color="#ff6b6b" radius-inner="3" radius-outer="5" 
                     material="side: double; opacity: 0.9" 
                     animation="property: scale; from: 1 1 1; to: 1.3 1.3 1.3; dur: 1000; loop: true; dir: alternate; easing: easeInOutQuad">
             </a-ring>
-            <a-sphere color="#ff6b6b" radius="0.3" 
+            <a-sphere color="#ff6b6b" radius="1.5" 
                       material="opacity: 1; shader: flat"
                       animation="property: components.material.material.opacity; from: 1; to: 0.4; dur: 1000; loop: true; dir: alternate">
             </a-sphere>
@@ -83,20 +83,12 @@
         
         let currentSeason = "summer";
         let constellationsVisible = false;
-        let pointerEnabled = false;
-        let camera, scene, sky, pointerMarker, raycaster;
+        let pointerVisible = false;
+        let pointerMarker;
         
         document.querySelector('a-scene').addEventListener('loaded', function() {
-            scene = this;
-            camera = scene.camera.el;
-            sky = document.getElementById('star-sky');
             pointerMarker = document.getElementById('pointer-marker');
-            
-            // Create raycaster
-            raycaster = new THREE.Raycaster();
-            
             setupButtons();
-            setupKeyboard();
         });
         
         function setupButtons() {
@@ -107,57 +99,36 @@
             });
             
             document.getElementById('const-btn').addEventListener('click', toggleConstellations);
-            document.getElementById('pointer-btn').addEventListener('click', togglePointer);
+            document.getElementById('pointer-btn').addEventListener('click', testPointer);
         }
         
-        function setupKeyboard() {
-            // Listen for spacebar to place pointer
-            document.addEventListener('keydown', function(event) {
-                if (event.code === 'Space' && pointerEnabled) {
-                    event.preventDefault();
-                    placePointerAtCenter();
-                }
-            });
-        }
-        
-        function placePointerAtCenter() {
-            // Cast ray from camera forward
-            const cameraWorldPos = new THREE.Vector3();
-            camera.object3D.getWorldPosition(cameraWorldPos);
+        function testPointer() {
+            pointerVisible = !pointerVisible;
+            const btn = document.getElementById('pointer-btn');
             
-            const cameraWorldDir = new THREE.Vector3();
-            camera.object3D.getWorldDirection(cameraWorldDir);
+            btn.classList.toggle('active', pointerVisible);
+            btn.textContent = pointerVisible ? 'Hide Pointer' : 'Test Pointer';
+            document.getElementById('pointer-display').textContent = pointerVisible ? 'On' : 'Off';
             
-            raycaster.set(cameraWorldPos, cameraWorldDir);
-            
-            // Get sky mesh
-            const skyMesh = sky.object3D.children[0];
-            
-            // Check intersection
-            const intersects = raycaster.intersectObject(skyMesh, true);
-            
-            if (intersects.length > 0) {
-                const point = intersects[0].point;
-                placePointer(point);
+            if (pointerVisible) {
+                // Show marker at fixed position directly ahead
+                pointerMarker.setAttribute('visible', true);
+                
+                // Broadcast to Firebase
+                db.ref("classroom/pointer3D").set({
+                    x: 0,
+                    y: 0,
+                    z: -100,
+                    visible: true,
+                    timestamp: Date.now()
+                });
+            } else {
+                pointerMarker.setAttribute('visible', false);
+                db.ref("classroom/pointer3D").set({
+                    visible: false,
+                    timestamp: Date.now()
+                });
             }
-        }
-        
-        function placePointer(point) {
-            // Place marker locally
-            pointerMarker.setAttribute('position', point);
-            pointerMarker.setAttribute('visible', true);
-            
-            // Make it face camera
-            pointerMarker.object3D.lookAt(camera.object3D.position);
-            
-            // Broadcast to Firebase
-            db.ref("classroom/pointer3D").set({
-                x: point.x,
-                y: point.y,
-                z: point.z,
-                visible: true,
-                timestamp: Date.now()
-            });
         }
         
         function updateSky() {
@@ -185,20 +156,6 @@
         function toggleConstellations() { 
             constellationsVisible = !constellationsVisible; 
             updateSky(); 
-        }
-        
-        function togglePointer() {
-            pointerEnabled = !pointerEnabled;
-            const btn = document.getElementById('pointer-btn');
-            
-            btn.classList.toggle('active', pointerEnabled);
-            btn.textContent = pointerEnabled ? 'Press SPACE to Point' : 'Enable Pointer';
-            document.getElementById('pointer-display').textContent = pointerEnabled ? 'On' : 'Off';
-            
-            if (!pointerEnabled) {
-                pointerMarker.setAttribute('visible', false);
-                db.ref("classroom/pointer3D").set({ visible: false, timestamp: Date.now() });
-            }
         }
         
         updateSky();
