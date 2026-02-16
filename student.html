@@ -10,9 +10,25 @@
     <style>
         body { margin: 0; display: flex; overflow: hidden; background: black; }
         .scene-container { width: 50vw; height: 100vh; }
+        #debug-overlay {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.9);
+            color: #FFD700;
+            padding: 10px;
+            font-size: 11px;
+            font-family: monospace;
+            z-index: 9999;
+            max-width: 300px;
+            border: 2px solid #FFD700;
+            border-radius: 5px;
+        }
     </style>
 </head>
 <body>
+    <div id="debug-overlay">Loading...</div>
+    
     <!-- Left eye -->
     <div class="scene-container">
         <a-scene embedded device-orientation-permission-ui="enabled: true">
@@ -78,15 +94,27 @@
         
         let pointerLeft, pointerRight;
         let scenesLoaded = 0;
+        const debugDiv = document.getElementById('debug-overlay');
+        
+        function showDebug(msg) {
+            debugDiv.innerHTML += '<br>' + msg;
+            console.log(msg);
+        }
+        
+        debugDiv.textContent = '⏳ Starting...';
+        showDebug('📱 Waiting for scenes...');
         
         // Wait for scenes
         document.querySelectorAll('a-scene').forEach(scene => {
             scene.addEventListener('loaded', function() {
                 scenesLoaded++;
+                showDebug(`✅ Scene ${scenesLoaded} loaded`);
+                
                 if (scenesLoaded === 2) {
                     pointerLeft = document.getElementById('pointer-left');
                     pointerRight = document.getElementById('pointer-right');
-                    console.log('✅ Student scenes ready');
+                    showDebug('✅ Both scenes ready');
+                    showDebug('🎯 Pointers: ' + (pointerLeft ? 'LEFT OK' : 'LEFT MISSING') + ', ' + (pointerRight ? 'RIGHT OK' : 'RIGHT MISSING'));
                 }
             });
         });
@@ -98,30 +126,44 @@
             const img = state.constellations ? IMAGES[state.season].const : IMAGES[state.season].normal;
             document.getElementById("skyLeft").setAttribute("src", img);
             document.getElementById("skyRight").setAttribute("src", img);
+            showDebug(`🌍 Sky: ${state.season}`);
         });
         
-        // Marker updates from teacher
+        // Marker updates
         db.ref("classroom/marker").on("value", snap => {
             const data = snap.val();
-            if (!data || !pointerLeft || !pointerRight) return;
+            showDebug('📡 Firebase update received');
+            
+            if (!data) {
+                showDebug('⚠️ No data in update');
+                return;
+            }
+            
+            if (!pointerLeft || !pointerRight) {
+                showDebug('⚠️ Pointers not ready yet');
+                return;
+            }
             
             const lat = data.lat;
             const lon = data.lon;
+            showDebug(`📍 Lat: ${lat.toFixed(2)}, Lon: ${lon.toFixed(2)}`);
             
-            // Reconstruct 3D position - using 4990 to place just inside 5000 sky radius
+            // Calculate 3D position
             const R = 4990;
             const x = R * Math.cos(lat) * Math.cos(lon);
             const y = R * Math.sin(lat);
             const z = R * Math.cos(lat) * Math.sin(lon);
             
-            console.log('📍 Marker at:', { x: x.toFixed(0), y: y.toFixed(0), z: z.toFixed(0) });
+            showDebug(`🎯 Position: x=${x.toFixed(0)}, y=${y.toFixed(0)}, z=${z.toFixed(0)}`);
             
             // Place markers
             pointerLeft.setAttribute("position", `${x} ${y} ${z}`);
             pointerLeft.setAttribute("visible", true);
+            showDebug('✅ LEFT marker placed & visible');
             
             pointerRight.setAttribute("position", `${x} ${y} ${z}`);
             pointerRight.setAttribute("visible", true);
+            showDebug('✅ RIGHT marker placed & visible');
         });
     </script>
 </body>
