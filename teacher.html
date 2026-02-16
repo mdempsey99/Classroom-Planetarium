@@ -22,6 +22,7 @@
         #pointer-btn.active { background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%); }
         #status { position: absolute; bottom: 20px; left: 20px; background: rgba(0,0,0,0.8); 
                   color: white; padding: 10px 15px; border-radius: 8px; font-size: 14px; z-index: 1000; }
+        .key-hint { color: #FFD700; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -38,7 +39,9 @@
         <div>Season: <span id="season-display">Summer</span></div>
         <div>Constellations: <span id="const-display">Off</span></div>
         <div>Pointer: <span id="pointer-display">Off</span></div>
-        <div style="font-size: 11px; margin-top: 5px; color: #90caf9;">Enable pointer, then click sky</div>
+        <div style="font-size: 11px; margin-top: 5px; color: #90caf9;">
+            Enable pointer, look at star, press <span class="key-hint">SPACEBAR</span> to point
+        </div>
     </div>
     
     <a-scene>
@@ -81,25 +84,19 @@
         let currentSeason = "summer";
         let constellationsVisible = false;
         let pointerEnabled = false;
-        let camera, scene, sky, pointerMarker, canvas, raycaster, mouse;
+        let camera, scene, sky, pointerMarker, raycaster;
         
         document.querySelector('a-scene').addEventListener('loaded', function() {
             scene = this;
-            camera = scene.camera;
+            camera = scene.camera.el;
             sky = document.getElementById('star-sky');
             pointerMarker = document.getElementById('pointer-marker');
-            canvas = scene.canvas;
             
             // Create raycaster
             raycaster = new THREE.Raycaster();
-            mouse = new THREE.Vector2();
             
             setupButtons();
-            
-            // Add click listener directly to canvas
-            canvas.addEventListener('click', handleCanvasClick, false);
-            
-            console.log('✅ Teacher scene ready');
+            setupKeyboard();
         });
         
         function setupButtons() {
@@ -111,43 +108,37 @@
             
             document.getElementById('const-btn').addEventListener('click', toggleConstellations);
             document.getElementById('pointer-btn').addEventListener('click', togglePointer);
-            
-            console.log('✅ Buttons configured');
         }
         
-        function handleCanvasClick(event) {
-            if (!pointerEnabled) {
-                console.log('⚠️ Pointer not enabled');
-                return;
-            }
+        function setupKeyboard() {
+            // Listen for spacebar to place pointer
+            document.addEventListener('keydown', function(event) {
+                if (event.code === 'Space' && pointerEnabled) {
+                    event.preventDefault();
+                    placePointerAtCenter();
+                }
+            });
+        }
+        
+        function placePointerAtCenter() {
+            // Cast ray from camera forward
+            const cameraWorldPos = new THREE.Vector3();
+            camera.object3D.getWorldPosition(cameraWorldPos);
             
-            console.log('🖱️ Canvas clicked!');
+            const cameraWorldDir = new THREE.Vector3();
+            camera.object3D.getWorldDirection(cameraWorldDir);
             
-            // Get canvas bounding rect
-            const rect = canvas.getBoundingClientRect();
-            
-            // Calculate normalized device coordinates
-            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-            
-            console.log('📐 Mouse coords:', mouse.x.toFixed(2), mouse.y.toFixed(2));
-            
-            // Cast ray from camera
-            raycaster.setFromCamera(mouse, camera);
+            raycaster.set(cameraWorldPos, cameraWorldDir);
             
             // Get sky mesh
             const skyMesh = sky.object3D.children[0];
             
-            // Check intersections
+            // Check intersection
             const intersects = raycaster.intersectObject(skyMesh, true);
-            
-            console.log('🎯 Intersections found:', intersects.length);
             
             if (intersects.length > 0) {
                 const point = intersects[0].point;
                 placePointer(point);
-            } else {
-                console.log('❌ No intersection with sky');
             }
         }
         
@@ -155,9 +146,9 @@
             // Place marker locally
             pointerMarker.setAttribute('position', point);
             pointerMarker.setAttribute('visible', true);
-            pointerMarker.object3D.lookAt(camera.position);
             
-            console.log('📍 Pointer placed at:', point);
+            // Make it face camera
+            pointerMarker.object3D.lookAt(camera.object3D.position);
             
             // Broadcast to Firebase
             db.ref("classroom/pointer3D").set({
@@ -166,10 +157,6 @@
                 z: point.z,
                 visible: true,
                 timestamp: Date.now()
-            }).then(() => {
-                console.log('✅ Sent to Firebase');
-            }).catch(err => {
-                console.error('❌ Firebase error:', err);
             });
         }
         
@@ -205,18 +192,12 @@
             const btn = document.getElementById('pointer-btn');
             
             btn.classList.toggle('active', pointerEnabled);
-            btn.textContent = pointerEnabled ? 'Click Sky to Point' : 'Enable Pointer';
+            btn.textContent = pointerEnabled ? 'Press SPACE to Point' : 'Enable Pointer';
             document.getElementById('pointer-display').textContent = pointerEnabled ? 'On' : 'Off';
             
-            // Change canvas cursor directly
-            if (pointerEnabled) {
-                canvas.style.cursor = 'crosshair';
-                console.log('✅ Pointer ENABLED - Click on sky');
-            } else {
-                canvas.style.cursor = 'default';
+            if (!pointerEnabled) {
                 pointerMarker.setAttribute('visible', false);
                 db.ref("classroom/pointer3D").set({ visible: false, timestamp: Date.now() });
-                console.log('❌ Pointer DISABLED');
             }
         }
         
