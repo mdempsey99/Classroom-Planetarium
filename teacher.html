@@ -19,7 +19,22 @@
         #const-btn { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
         #const-btn.active { background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%); color: #000; }
         #status { position: absolute; bottom: 20px; left: 20px; background: rgba(0,0,0,0.8); 
-                  color: white; padding: 10px 15px; border-radius: 8px; font-size: 14px; z-index: 1000; }
+                  color: white; padding: 10px 15px; border-radius: 8px; font-size: 14px; z-index: 1000; 
+                  max-width: 300px; }
+        #click-feedback { 
+            position: absolute; 
+            top: 50%; 
+            left: 50%; 
+            transform: translate(-50%, -50%);
+            background: rgba(255, 107, 107, 0.9);
+            color: white;
+            padding: 20px 30px;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            display: none;
+            z-index: 2000;
+        }
     </style>
 </head>
 <body>
@@ -37,7 +52,10 @@
         <div style="font-size: 11px; margin-top: 5px; color: #90caf9;">
             Click on sky to place pointer
         </div>
+        <div id="debug-info" style="font-size: 10px; margin-top: 10px; color: #FFD700;"></div>
     </div>
+    
+    <div id="click-feedback">✅ POINTER PLACED!</div>
     
     <a-scene>
         <a-camera id="teacherCam" look-controls wasd-controls="enabled: false"></a-camera>
@@ -67,52 +85,54 @@
         
         let currentSeason = "summer";
         let constellationsVisible = false;
+        const debugInfo = document.getElementById('debug-info');
         
-        // Wait for scene to load BEFORE attaching listeners
+        function showDebug(msg) {
+            debugInfo.textContent = msg;
+            console.log(msg);
+        }
+        
+        function showFeedback() {
+            const feedback = document.getElementById('click-feedback');
+            feedback.style.display = 'block';
+            setTimeout(() => {
+                feedback.style.display = 'none';
+            }, 1000);
+        }
+        
+        // Wait for scene
         const sceneEl = document.querySelector('a-scene');
+        showDebug('⏳ Loading scene...');
+        
         sceneEl.addEventListener('loaded', function() {
-            console.log('✅ Scene loaded');
+            showDebug('✅ Scene loaded, setting up click...');
             
             const cameraEl = document.querySelector('#teacherCam');
             const skyEl = document.querySelector('#star-sky');
             const raycaster = new THREE.Raycaster();
             const mouse = new THREE.Vector2();
             
-            console.log('✅ Canvas ready:', sceneEl.canvas);
-            
-            // Now attach click listener
+            // Attach click listener
             sceneEl.canvas.addEventListener('click', function(event) {
-                console.log('🖱️ Canvas clicked!');
+                showDebug('🖱️ Click detected!');
                 
                 const rect = sceneEl.canvas.getBoundingClientRect();
-                
-                // Normalized device coordinates
                 mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
                 mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
                 
-                console.log('📐 Mouse coords:', mouse.x.toFixed(2), mouse.y.toFixed(2));
-                
-                // Cast ray
                 raycaster.setFromCamera(mouse, cameraEl.getObject3D('camera'));
+                const intersects = raycaster.intersectObject(skyEl.getObject3D('mesh'), true);
                 
-                // Intersect with sky
-                const intersects = raycaster.intersectObject(
-                    skyEl.getObject3D('mesh'),
-                    true
-                );
-                
-                console.log('🎯 Intersections:', intersects.length);
+                showDebug(`🎯 Intersections: ${intersects.length}`);
                 
                 if (intersects.length > 0) {
                     const point = intersects[0].point.clone().normalize();
-                    
-                    // Convert to lat/lon
                     const lat = Math.asin(point.y);
-                    const lon = Math.atan2(point.z, point.x) - Math.PI; // Adjust for 180° rotation
+                    const lon = Math.atan2(point.z, point.x) - Math.PI;
                     
-                    console.log('📍 Clicked lat/lon:', lat.toFixed(3), lon.toFixed(3));
+                    showDebug(`📍 Lat: ${lat.toFixed(2)}, Lon: ${lon.toFixed(2)}`);
+                    showFeedback();
                     
-                    // Broadcast
                     db.ref("classroom/marker").set({
                         lat: lat,
                         lon: lon,
@@ -121,7 +141,7 @@
                 }
             });
             
-            // Set up buttons
+            showDebug('✅ Click listener active - try clicking!');
             setupButtons();
         });
         
