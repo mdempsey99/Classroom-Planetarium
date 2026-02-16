@@ -99,14 +99,10 @@
             const data = snap.val();
             if (!data || !pointerLeft || !pointerRight) return;
             
-            const lat = data.lat;
-            const lon = data.lon;
-            
-            // Use radius of 90 (same as teacher!)
-            const R = 90;
-            const x = R * Math.cos(lat) * Math.cos(lon);
-            const y = R * Math.sin(lat);
-            const z = R * Math.cos(lat) * Math.sin(lon);
+            // Receive normalized direction and scale to visible distance
+            const x = data.x * 100;
+            const y = data.y * 100;
+            const z = data.z * 100;
             
             console.log('📍 Student marker at:', { x: x.toFixed(1), y: y.toFixed(1), z: z.toFixed(1) });
             
