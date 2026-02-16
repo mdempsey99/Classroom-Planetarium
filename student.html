@@ -10,13 +10,9 @@
     <style>
         body { margin: 0; display: flex; overflow: hidden; background: black; }
         .scene-container { width: 50vw; height: 100vh; }
-        #debug { position: fixed; bottom: 10px; left: 10px; background: rgba(0,0,0,0.9); color: #FFD700; 
-                 padding: 10px; font-size: 10px; font-family: monospace; z-index: 9999; max-width: 300px; 
-                 border: 2px solid #FFD700; }
     </style>
 </head>
 <body>
-    <div id="debug">Starting...</div>
     
     <!-- Left eye -->
     <div class="scene-container">
@@ -79,27 +75,14 @@
         
         let pointerLeft, pointerRight;
         let scenesLoaded = 0;
-        const debugDiv = document.getElementById('debug');
-        let debugLog = [];
-        
-        function addDebug(msg) {
-            debugLog.push(msg);
-            if (debugLog.length > 10) debugLog.shift();
-            debugDiv.innerHTML = debugLog.join('<br>');
-            console.log(msg);
-        }
-        
-        addDebug('⏳ Waiting for scenes...');
         
         document.querySelectorAll('a-scene').forEach(scene => {
             scene.addEventListener('loaded', function() {
                 scenesLoaded++;
-                addDebug(`✅ Scene ${scenesLoaded} loaded`);
-                
                 if (scenesLoaded === 2) {
                     pointerLeft = document.getElementById('pointer-left');
                     pointerRight = document.getElementById('pointer-right');
-                    addDebug('✅ Pointers ready');
+                    console.log('✅ Student scenes ready');
                 }
             });
         });
@@ -111,28 +94,14 @@
             const img = state.constellations ? IMAGES[state.season].const : IMAGES[state.season].normal;
             document.getElementById("skyLeft").setAttribute("src", img);
             document.getElementById("skyRight").setAttribute("src", img);
-            addDebug(`🌍 Sky: ${state.season}`);
         });
         
         // Marker updates
         db.ref("classroom/marker").on("value", snap => {
-            addDebug('📡 Firebase update!');
-            
             const data = snap.val();
-            if (!data) {
-                addDebug('⚠️ No data');
-                return;
-            }
-            
-            addDebug(`Data: visible=${data.visible}`);
-            
-            if (!pointerLeft || !pointerRight) {
-                addDebug('⚠️ Pointers not ready');
-                return;
-            }
+            if (!data || !pointerLeft || !pointerRight) return;
             
             if (data.visible === false) {
-                addDebug('👁️ Hiding marker');
                 pointerLeft.setAttribute('visible', false);
                 pointerRight.setAttribute('visible', false);
                 return;
@@ -142,15 +111,13 @@
             const y = data.y * 100;
             const z = data.z * 100;
             
-            addDebug(`📍 (${x.toFixed(0)}, ${y.toFixed(0)}, ${z.toFixed(0)})`);
+            console.log('📍 Marker at:', { x: x.toFixed(0), y: y.toFixed(0), z: z.toFixed(0) });
             
             pointerLeft.setAttribute("position", `${x} ${y} ${z}`);
             pointerLeft.setAttribute("visible", true);
             
             pointerRight.setAttribute("position", `${x} ${y} ${z}`);
             pointerRight.setAttribute("visible", true);
-            
-            addDebug('✅ Marker placed!');
         });
     </script>
 </body>
