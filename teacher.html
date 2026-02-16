@@ -68,42 +68,51 @@
         let currentSeason = "summer";
         let constellationsVisible = false;
         
-        // Wait for scene to load
+        // Wait for scene to load BEFORE attaching listeners
         const sceneEl = document.querySelector('a-scene');
         sceneEl.addEventListener('loaded', function() {
+            console.log('✅ Scene loaded');
+            
             const cameraEl = document.querySelector('#teacherCam');
             const skyEl = document.querySelector('#star-sky');
             const raycaster = new THREE.Raycaster();
             const mouse = new THREE.Vector2();
             
-            // Set up buttons
-            setupButtons();
+            console.log('✅ Canvas ready:', sceneEl.canvas);
             
-            // Click handler for raycasting
+            // Now attach click listener
             sceneEl.canvas.addEventListener('click', function(event) {
+                console.log('🖱️ Canvas clicked!');
+                
                 const rect = sceneEl.canvas.getBoundingClientRect();
                 
-                // Convert mouse to normalized device coordinates (-1 to +1)
+                // Normalized device coordinates
                 mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
                 mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
                 
-                // Update raycaster
+                console.log('📐 Mouse coords:', mouse.x.toFixed(2), mouse.y.toFixed(2));
+                
+                // Cast ray
                 raycaster.setFromCamera(mouse, cameraEl.getObject3D('camera'));
                 
-                // Intersect with sky sphere
-                const skyMesh = skyEl.getObject3D('mesh');
-                const intersects = raycaster.intersectObject(skyMesh);
+                // Intersect with sky
+                const intersects = raycaster.intersectObject(
+                    skyEl.getObject3D('mesh'),
+                    true
+                );
+                
+                console.log('🎯 Intersections:', intersects.length);
                 
                 if (intersects.length > 0) {
                     const point = intersects[0].point.clone().normalize();
                     
-                    // Convert to spherical coordinates
+                    // Convert to lat/lon
                     const lat = Math.asin(point.y);
-                    const lon = Math.atan2(point.z, point.x) - Math.PI; // Subtract PI for 180° rotation
+                    const lon = Math.atan2(point.z, point.x) - Math.PI; // Adjust for 180° rotation
                     
-                    console.log('📍 Clicked:', { lat, lon });
+                    console.log('📍 Clicked lat/lon:', lat.toFixed(3), lon.toFixed(3));
                     
-                    // Broadcast to Firebase
+                    // Broadcast
                     db.ref("classroom/marker").set({
                         lat: lat,
                         lon: lon,
@@ -111,6 +120,9 @@
                     });
                 }
             });
+            
+            // Set up buttons
+            setupButtons();
         });
         
         function setupButtons() {

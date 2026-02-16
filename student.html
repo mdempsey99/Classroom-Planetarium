@@ -20,13 +20,13 @@
             
             <a-sky id="skyLeft" src="summer_solstice.jpeg" rotation="0 180 0"></a-sky>
             
-            <!-- Marker in world space -->
+            <!-- Marker -->
             <a-entity id="pointer-left" visible="false">
-                <a-ring color="#ff6b6b" radius-inner="2" radius-outer="3" 
+                <a-ring color="#ff6b6b" radius-inner="8" radius-outer="12" 
                         material="side: double; opacity: 0.9" 
                         animation="property: scale; from: 1 1 1; to: 1.3 1.3 1.3; dur: 1000; loop: true; dir: alternate">
                 </a-ring>
-                <a-sphere color="#ff6b6b" radius="1" 
+                <a-sphere color="#ff6b6b" radius="4" 
                           material="opacity: 1; shader: flat"
                           animation="property: components.material.material.opacity; from: 1; to: 0.4; dur: 1000; loop: true; dir: alternate">
                 </a-sphere>
@@ -41,13 +41,13 @@
             
             <a-sky id="skyRight" src="summer_solstice.jpeg" rotation="0 180 0"></a-sky>
             
-            <!-- Marker in world space -->
+            <!-- Marker -->
             <a-entity id="pointer-right" visible="false">
-                <a-ring color="#ff6b6b" radius-inner="2" radius-outer="3" 
+                <a-ring color="#ff6b6b" radius-inner="8" radius-outer="12" 
                         material="side: double; opacity: 0.9" 
                         animation="property: scale; from: 1 1 1; to: 1.3 1.3 1.3; dur: 1000; loop: true; dir: alternate">
                 </a-ring>
-                <a-sphere color="#ff6b6b" radius="1" 
+                <a-sphere color="#ff6b6b" radius="4" 
                           material="opacity: 1; shader: flat"
                           animation="property: components.material.material.opacity; from: 1; to: 0.4; dur: 1000; loop: true; dir: alternate">
                 </a-sphere>
@@ -79,18 +79,19 @@
         let pointerLeft, pointerRight;
         let scenesLoaded = 0;
         
-        // Wait for both scenes
+        // Wait for scenes
         document.querySelectorAll('a-scene').forEach(scene => {
             scene.addEventListener('loaded', function() {
                 scenesLoaded++;
                 if (scenesLoaded === 2) {
                     pointerLeft = document.getElementById('pointer-left');
                     pointerRight = document.getElementById('pointer-right');
+                    console.log('✅ Student scenes ready');
                 }
             });
         });
         
-        // Listen for sky changes
+        // Sky changes
         db.ref("classroom/currentView").on("value", snap => {
             const state = snap.val();
             if (!state) return;
@@ -99,7 +100,7 @@
             document.getElementById("skyRight").setAttribute("src", img);
         });
         
-        // Listen for marker position (lat/lon from teacher)
+        // Marker updates from teacher
         db.ref("classroom/marker").on("value", snap => {
             const data = snap.val();
             if (!data || !pointerLeft || !pointerRight) return;
@@ -107,15 +108,15 @@
             const lat = data.lat;
             const lon = data.lon;
             
-            // Reconstruct 3D position from spherical coordinates
-            const R = 90; // Same radius as distance in space
+            // Reconstruct 3D position - using 4990 to place just inside 5000 sky radius
+            const R = 4990;
             const x = R * Math.cos(lat) * Math.cos(lon);
             const y = R * Math.sin(lat);
             const z = R * Math.cos(lat) * Math.sin(lon);
             
-            console.log('📍 Marker position:', { x, y, z });
+            console.log('📍 Marker at:', { x: x.toFixed(0), y: y.toFixed(0), z: z.toFixed(0) });
             
-            // Place markers at exact 3D position
+            // Place markers
             pointerLeft.setAttribute("position", `${x} ${y} ${z}`);
             pointerLeft.setAttribute("visible", true);
             
