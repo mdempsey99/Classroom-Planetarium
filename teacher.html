@@ -18,7 +18,8 @@
         .season-btn { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
         #const-btn { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
         #const-btn.active { background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%); color: #000; }
-        #test-btn { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+        #pointer-btn { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+        #pointer-btn.active { background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%); }
         #status { position: absolute; bottom: 20px; left: 20px; background: rgba(0,0,0,0.8); 
                   color: white; padding: 10px 15px; border-radius: 8px; font-size: 14px; z-index: 1000; }
     </style>
@@ -30,14 +31,15 @@
         <button class="season-btn" data-season="spring">🌸 Spring</button>
         <button class="season-btn" data-season="fall">🍂 Fall</button>
         <button id="const-btn">Show Constellations</button>
-        <button id="test-btn">TEST Marker</button>
+        <button id="pointer-btn">Enable Pointer</button>
     </div>
     
     <div id="status">
         <div>Season: <span id="season-display">Summer</span></div>
         <div>Constellations: <span id="const-display">Off</span></div>
+        <div>Pointer: <span id="pointer-display">Off</span></div>
         <div style="font-size: 11px; margin-top: 5px; color: #90caf9;">
-            Click sky OR use TEST button
+            Enable pointer, then click sky
         </div>
         <div id="debug" style="font-size: 10px; margin-top: 5px; color: #FFD700;"></div>
     </div>
@@ -81,6 +83,7 @@
         
         let currentSeason = "summer";
         let constellationsVisible = false;
+        let pointerEnabled = false;
         let marker;
         const debugDiv = document.getElementById('debug');
         
@@ -100,6 +103,11 @@
             showDebug('✅ Ready');
             
             sceneEl.canvas.addEventListener('click', function(event) {
+                if (!pointerEnabled) {
+                    showDebug('⚠️ Pointer disabled - enable it first');
+                    return;
+                }
+                
                 const rect = sceneEl.canvas.getBoundingClientRect();
                 mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
                 mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -108,27 +116,29 @@
                 const intersects = raycaster.intersectObject(skyEl.getObject3D('mesh'), true);
                 
                 if (intersects.length > 0) {
-                    // Use the ACTUAL intersection point, scaled closer to camera
                     const point = intersects[0].point;
-                    
-                    // Scale it down to be visible (bring it from ~5000 radius to ~100 radius)
                     const scaleFactor = 100 / point.length();
                     const scaledPoint = point.clone().multiplyScalar(scaleFactor);
                     
-                    showDebug(`📍 (${scaledPoint.x.toFixed(0)}, ${scaledPoint.y.toFixed(0)}, ${scaledPoint.z.toFixed(0)})`);
+                    showDebug(`📍 Pointing at star`);
                     
-                    // Place marker at scaled position
                     marker.setAttribute('position', scaledPoint);
                     marker.setAttribute('visible', true);
                     
-                    // Send normalized direction (not position)
                     const normalized = point.clone().normalize();
+                    
+                    console.log('🔥 Sending to Firebase:', normalized);
                     
                     db.ref("classroom/marker").set({
                         x: normalized.x,
                         y: normalized.y,
                         z: normalized.z,
+                        visible: true,
                         timestamp: Date.now()
+                    }).then(() => {
+                        console.log('✅ Firebase updated');
+                    }).catch(err => {
+                        console.error('❌ Firebase error:', err);
                     });
                 }
             });
@@ -144,21 +154,30 @@
             });
             
             document.getElementById('const-btn').addEventListener('click', toggleConstellations);
-            document.getElementById('test-btn').addEventListener('click', testMarker);
+            document.getElementById('pointer-btn').addEventListener('click', togglePointer);
         }
         
-        function testMarker() {
-            marker.setAttribute('position', '0 0 -100');
-            marker.setAttribute('visible', true);
-            showDebug('🧪 Test at (0, 0, -100)');
+        function togglePointer() {
+            pointerEnabled = !pointerEnabled;
+            const btn = document.getElementById('pointer-btn');
             
-            // Broadcast test position
-            db.ref("classroom/marker").set({
-                x: 0,
-                y: 0,
-                z: -1, // Normalized direction straight ahead
-                timestamp: Date.now()
-            });
+            btn.classList.toggle('active', pointerEnabled);
+            btn.textContent = pointerEnabled ? 'Disable Pointer' : 'Enable Pointer';
+            document.getElementById('pointer-display').textContent = pointerEnabled ? 'On' : 'Off';
+            
+            if (!pointerEnabled) {
+                // Hide marker
+                marker.setAttribute('visible', false);
+                showDebug('✅ Pointer disabled - can drag freely');
+                
+                // Hide for students
+                db.ref("classroom/marker").set({
+                    visible: false,
+                    timestamp: Date.now()
+                });
+            } else {
+                showDebug('✅ Pointer enabled - click to point');
+            }
         }
         
         function updateSky() {
