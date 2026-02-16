@@ -11,13 +11,14 @@
         body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; background: #000; }
         #controls { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; 
                     background: rgba(0,0,0,0.8); padding: 15px; border-radius: 10px; display: flex; 
-                    gap: 10px; flex-wrap: wrap; justify-content: center; }
+                    gap: 10px; flex-wrap: wrap; justify-content: center; max-width: 90%; }
         button { padding: 12px 20px; margin: 0; font-weight: bold; border: none; border-radius: 8px; 
                  cursor: pointer; color: white; font-size: 14px; transition: all 0.3s ease; }
         button:hover { transform: scale(1.05); }
         .season-btn { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
         #const-btn { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
         #const-btn.active { background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%); color: #000; }
+        #test-btn { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
         #status { position: absolute; bottom: 20px; left: 20px; background: rgba(0,0,0,0.8); 
                   color: white; padding: 10px 15px; border-radius: 8px; font-size: 14px; z-index: 1000; }
     </style>
@@ -29,21 +30,23 @@
         <button class="season-btn" data-season="spring">🌸 Spring</button>
         <button class="season-btn" data-season="fall">🍂 Fall</button>
         <button id="const-btn">Show Constellations</button>
+        <button id="test-btn">TEST Marker</button>
     </div>
     
     <div id="status">
         <div>Season: <span id="season-display">Summer</span></div>
         <div>Constellations: <span id="const-display">Off</span></div>
         <div style="font-size: 11px; margin-top: 5px; color: #90caf9;">
-            Click on sky to place pointer
+            Click sky OR use TEST button
         </div>
+        <div id="debug" style="font-size: 10px; margin-top: 5px; color: #FFD700;"></div>
     </div>
     
     <a-scene>
         <a-camera id="teacherCam" look-controls wasd-controls="enabled: false"></a-camera>
         <a-sky id="star-sky" src="summer_solstice.jpeg" rotation="0 180 0"></a-sky>
         
-        <!-- Teacher marker -->
+        <!-- Single marker for both test and clicks -->
         <a-entity id="marker" visible="false">
             <a-ring color="#ff6b6b" radius-inner="3" radius-outer="5" 
                     material="side: double; opacity: 0.9" 
@@ -80,6 +83,12 @@
         let currentSeason = "summer";
         let constellationsVisible = false;
         let marker;
+        const debugDiv = document.getElementById('debug');
+        
+        function showDebug(msg) {
+            debugDiv.textContent = msg;
+            console.log(msg);
+        }
         
         const sceneEl = document.querySelector('a-scene');
         sceneEl.addEventListener('loaded', function() {
@@ -89,7 +98,12 @@
             const raycaster = new THREE.Raycaster();
             const mouse = new THREE.Vector2();
             
+            showDebug('✅ Ready');
+            
+            // Click handler
             sceneEl.canvas.addEventListener('click', function(event) {
+                showDebug('🖱️ Click detected');
+                
                 const rect = sceneEl.canvas.getBoundingClientRect();
                 mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
                 mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -97,23 +111,23 @@
                 raycaster.setFromCamera(mouse, cameraEl.getObject3D('camera'));
                 const intersects = raycaster.intersectObject(skyEl.getObject3D('mesh'), true);
                 
+                showDebug(`🎯 Hits: ${intersects.length}`);
+                
                 if (intersects.length > 0) {
                     const point = intersects[0].point.clone().normalize();
                     const lat = Math.asin(point.y);
                     const lon = Math.atan2(point.z, point.x) - Math.PI;
                     
-                    // Use radius of 90 (same as test marker that worked!)
                     const R = 90;
                     const x = R * Math.cos(lat) * Math.cos(lon);
                     const y = R * Math.sin(lat);
                     const z = R * Math.cos(lat) * Math.sin(lon);
                     
-                    console.log('📍 Marker at:', { x: x.toFixed(1), y: y.toFixed(1), z: z.toFixed(1) });
+                    showDebug(`📍 (${x.toFixed(0)}, ${y.toFixed(0)}, ${z.toFixed(0)})`);
                     
                     marker.setAttribute('position', `${x} ${y} ${z}`);
                     marker.setAttribute('visible', true);
                     
-                    // Broadcast
                     db.ref("classroom/marker").set({
                         lat: lat,
                         lon: lon,
@@ -133,6 +147,14 @@
             });
             
             document.getElementById('const-btn').addEventListener('click', toggleConstellations);
+            document.getElementById('test-btn').addEventListener('click', testMarker);
+        }
+        
+        function testMarker() {
+            // Place at fixed position like before
+            marker.setAttribute('position', '0 0 -100');
+            marker.setAttribute('visible', true);
+            showDebug('🧪 Test at (0, 0, -100)');
         }
         
         function updateSky() {
