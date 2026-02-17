@@ -17,13 +17,13 @@
             <video id="starry-video" src="starrysky.mp4" loop crossorigin="anonymous"></video>
         </a-assets>
 
-        <a-camera look-controls="magicWindowTrackingEnabled: true; touchEnabled: false" wasd-controls="enabled: false"></a-camera>
+        <a-camera fov="60" rotation="0 180 0" look-controls="magicWindowTrackingEnabled: true; touchEnabled: false" wasd-controls="enabled: false"></a-camera>
 
         <!-- Static sky -->
-        <a-sky id="sky" src="summer_solstice.jpeg" rotation="0 180 0" visible="true"></a-sky>
+        <a-sky id="sky" src="summer_solstice.jpeg" rotation="0 0 0" visible="true"></a-sky>
 
         <!-- Video sky -->
-        <a-videosphere id="videoSky" src="#starry-video" rotation="0 180 0" visible="false"></a-videosphere>
+        <a-videosphere id="videoSky" src="#starry-video" rotation="0 0 0" visible="false"></a-videosphere>
 
         <a-entity id="pointer" visible="false">
             <a-ring color="#ff6b6b" radius-inner="8" radius-outer="12"

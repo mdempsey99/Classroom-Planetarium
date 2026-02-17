@@ -20,9 +20,6 @@
         #const-btn.active { background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%); color: #000; }
         #pointer-btn { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
         #pointer-btn.active { background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%); }
-        #video-btn { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
-        #video-btn.active { background: linear-gradient(135deg, #FF6B6B 0%, #4ECDC4 100%); }
-        #play-btn { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); display: none; }
         #status { position: absolute; bottom: 20px; left: 20px; background: rgba(0,0,0,0.8); 
                   color: white; padding: 10px 15px; border-radius: 8px; font-size: 14px; z-index: 1000; }
     </style>
@@ -34,29 +31,21 @@
         <button class="season-btn" data-season="spring">🌸 Spring</button>
         <button class="season-btn" data-season="fall">🍂 Fall</button>
         <button id="const-btn">Show Constellations</button>
-        <button id="video-btn">Show Time-Lapse</button>
-        <button id="play-btn">▶️ Play</button>
         <button id="pointer-btn">Enable Pointer</button>
     </div>
     
     <div id="status">
-        <div>Mode: <span id="mode-display">Image</span></div>
         <div>Season: <span id="season-display">Summer</span></div>
         <div>Constellations: <span id="const-display">Off</span></div>
         <div>Pointer: <span id="pointer-display">Off</span></div>
     </div>
     
-    <a-scene>
-        <a-assets>
-            <video id="starry-video" src="starrysky.mp4" loop crossorigin="anonymous"></video>
-        </a-assets>
-        
+    <a-scene>        
         <!-- Camera starts facing 180° so North is correct; FOV reduced to 60° -->
         <a-camera id="teacherCam" fov="60" rotation="0 180 0" look-controls wasd-controls="enabled: false"></a-camera>
         
         <!-- Sky rotation removed - camera rotation handles orientation -->
         <a-sky id="star-sky" src="summer_solstice.jpeg" rotation="0 0 0" visible="true"></a-sky>
-        <a-videosphere id="video-sky" src="#starry-video" rotation="0 0 0" visible="false"></a-videosphere>
         
         <a-entity id="marker" visible="false">
             <a-ring color="#ff6b6b" radius-inner="8" radius-outer="12" 
@@ -94,16 +83,12 @@
         let currentSeason = "summer";
         let constellationsVisible = false;
         let pointerEnabled = false;
-        let videoMode = false;
-        let videoPlaying = false;
-        let marker, starSky, videoSky, video;
+        let marker, starSky;
         
         const sceneEl = document.querySelector('a-scene');
         sceneEl.addEventListener('loaded', function() {
             const cameraEl = document.querySelector('#teacherCam');
             starSky = document.getElementById('star-sky');
-            videoSky = document.getElementById('video-sky');
-            video = document.getElementById('starry-video');
             marker = document.getElementById('marker');
             const raycaster = new THREE.Raycaster();
             const mouse = new THREE.Vector2();
@@ -117,8 +102,7 @@
                 
                 raycaster.setFromCamera(mouse, cameraEl.getObject3D('camera'));
                 
-                const targetSky = videoMode ? videoSky : starSky;
-                const intersects = raycaster.intersectObject(targetSky.getObject3D('mesh'), true);
+                const intersects = raycaster.intersectObject(starSky.getObject3D('mesh'), true);
                 
                 if (intersects.length > 0) {
                     const point = intersects[0].point;
@@ -152,59 +136,6 @@
             
             document.getElementById('const-btn').addEventListener('click', toggleConstellations);
             document.getElementById('pointer-btn').addEventListener('click', togglePointer);
-            document.getElementById('video-btn').addEventListener('click', toggleVideo);
-            document.getElementById('play-btn').addEventListener('click', togglePlay);
-        }
-        
-        function toggleVideo() {
-            videoMode = !videoMode;
-            const btn = document.getElementById('video-btn');
-            const playBtn = document.getElementById('play-btn');
-            
-            if (videoMode) {
-                starSky.setAttribute('visible', false);
-                videoSky.setAttribute('visible', true);
-                btn.classList.add('active');
-                btn.textContent = 'Show Images';
-                playBtn.style.display = 'inline-block';
-                document.getElementById('mode-display').textContent = 'Video';
-                
-                db.ref("classroom/currentView").set({
-                    mode: 'video',
-                    playing: videoPlaying,
-                    timestamp: Date.now()
-                });
-            } else {
-                video.pause();
-                videoPlaying = false;
-                starSky.setAttribute('visible', true);
-                videoSky.setAttribute('visible', false);
-                btn.classList.remove('active');
-                btn.textContent = 'Show Time-Lapse';
-                playBtn.style.display = 'none';
-                document.getElementById('mode-display').textContent = 'Image';
-                
-                updateSky();
-            }
-        }
-        
-        function togglePlay() {
-            videoPlaying = !videoPlaying;
-            const btn = document.getElementById('play-btn');
-            
-            if (videoPlaying) {
-                video.play();
-                btn.textContent = '⏸️ Pause';
-            } else {
-                video.pause();
-                btn.textContent = '▶️ Play';
-            }
-            
-            db.ref("classroom/currentView").set({
-                mode: 'video',
-                playing: videoPlaying,
-                timestamp: Date.now()
-            });
         }
         
         function togglePointer() {
