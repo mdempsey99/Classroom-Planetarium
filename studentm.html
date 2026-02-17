@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student View</title>
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background: black; }
+    </style>
+</head>
+<body>
+    <a-scene device-orientation-permission-ui="enabled: true">
+        <a-assets>
+            <video id="starry-video" src="starrysky.mp4" loop crossorigin="anonymous"></video>
+        </a-assets>
+
+        <a-camera look-controls="magicWindowTrackingEnabled: true; touchEnabled: false" wasd-controls="enabled: false"></a-camera>
+
+        <!-- Static sky -->
+        <a-sky id="sky" src="summer_solstice.jpeg" rotation="0 180 0" visible="true"></a-sky>
+
+        <!-- Video sky -->
+        <a-videosphere id="videoSky" src="#starry-video" rotation="0 180 0" visible="false"></a-videosphere>
+
+        <a-entity id="pointer" visible="false">
+            <a-ring color="#ff6b6b" radius-inner="8" radius-outer="12"
+                    material="side: double; opacity: 0.9"
+                    animation="property: scale; from: 1 1 1; to: 1.3 1.3 1.3; dur: 1000; loop: true; dir: alternate">
+            </a-ring>
+            <a-sphere color="#ff6b6b" radius="4"
+                      material="opacity: 1; shader: flat"
+                      animation="property: components.material.material.opacity; from: 1; to: 0.4; dur: 1000; loop: true; dir: alternate">
+            </a-sphere>
+        </a-entity>
+    </a-scene>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBUXUHdJ3oox3YSixJfoYuyRRrILe6n7ck",
+            authDomain: "classroom-vrplanetarium.firebaseapp.com",
+            databaseURL: "https://classroom-vrplanetarium-default-rtdb.firebaseio.com",
+            projectId: "classroom-vrplanetarium",
+            storageBucket: "classroom-vrplanetarium.firebasestorage.app",
+            messagingSenderId: "613751774262",
+            appId: "1:613751774262:web:79563f3843ef894e05cc97"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        const IMAGES = {
+            summer: { normal: "summer_solstice.jpeg", const: "summer_solstice_constellations.jpeg" },
+            winter: { normal: "winter_solstice.jpeg", const: "winter_solstice_constellations.jpeg" },
+            spring: { normal: "spring_equinox.jpeg", const: "spring_equinox_constellations.jpeg" },
+            fall:   { normal: "fall_equinox.jpeg",   const: "fall_equinox_constellations.jpeg" }
+        };
+
+        let pointer, sky, videoSky, videoElem;
+
+        document.querySelector('a-scene').addEventListener('loaded', function() {
+            pointer  = document.getElementById('pointer');
+            sky      = document.getElementById('sky');
+            videoSky = document.getElementById('videoSky');
+            videoElem = document.getElementById('starry-video');
+            console.log('✅ Mono student scene ready');
+        });
+
+        // Listen for view changes
+        db.ref("classroom/currentView").on("value", snap => {
+            const state = snap.val();
+            if (!state || !sky) return;
+
+            if (state.mode === 'video') {
+                sky.setAttribute('visible', false);
+                videoSky.setAttribute('visible', true);
+                state.playing ? videoElem.play() : videoElem.pause();
+            } else {
+                videoElem.pause();
+                videoSky.setAttribute('visible', false);
+                sky.setAttribute('visible', true);
+                const img = state.constellations ? IMAGES[state.season].const : IMAGES[state.season].normal;
+                sky.setAttribute("src", img);
+            }
+        });
+
+        // Marker updates
+        db.ref("classroom/marker").on("value", snap => {
+            const data = snap.val();
+            if (!data || !pointer) return;
+
+            if (data.visible === false) {
+                pointer.setAttribute('visible', false);
+                return;
+            }
+
+            const x = data.x * 100;
+            const y = data.y * 100;
+            const z = data.z * 100;
+
+            pointer.setAttribute("position", `${x} ${y} ${z}`);
+            pointer.setAttribute("visible", true);
+        });
+    </script>
+</body>
+</html>
