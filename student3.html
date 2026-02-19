@@ -91,6 +91,27 @@
         let pointerLeft, pointerRight, skyLeft, skyRight, videoLeft, videoRight;
         let videoElemLeft, videoElemRight;
         let scenesLoaded = 0;
+        let studentId = 'student_' + Math.random().toString(36).substr(2, 9);
+        let heartbeatInterval;
+        
+        // Send heartbeat to show we're connected
+        function sendHeartbeat() {
+            db.ref("classroom/students/" + studentId).set({
+                name: "Student " + studentId.slice(-4),
+                lastSeen: Date.now(),
+                connected: true
+            });
+        }
+        
+        // Start heartbeat when page loads
+        sendHeartbeat();
+        heartbeatInterval = setInterval(sendHeartbeat, 3000); // Every 3 seconds
+        
+        // Clean up when leaving
+        window.addEventListener('beforeunload', () => {
+            db.ref("classroom/students/" + studentId).remove();
+            clearInterval(heartbeatInterval);
+        });
         
         document.querySelectorAll('a-scene').forEach(scene => {
             scene.addEventListener('loaded', function() {
