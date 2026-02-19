@@ -17,7 +17,14 @@
             <video id="starry-video" src="starrysky.mp4" loop crossorigin="anonymous"></video>
         </a-assets>
 
-        <a-camera fov="60" rotation="0 180 0" look-controls="magicWindowTrackingEnabled: true; touchEnabled: false" wasd-controls="enabled: false"></a-camera>
+        <a-camera fov="60" rotation="0 180 0" look-controls="magicWindowTrackingEnabled: true; touchEnabled: false" wasd-controls="enabled: false">
+            <!-- Grey target feedback circle (always centered in view) -->
+            <a-entity id="target-circle" visible="false">
+                <a-ring position="0 0 -2" radius-inner="0.28" radius-outer="0.32" 
+                        color="#808080" material="side: double; opacity: 0.4; transparent: true">
+                </a-ring>
+            </a-entity>
+        </a-camera>
 
         <!-- Static sky -->
         <a-sky id="sky" src="summer_solstice.jpeg" rotation="0 0 0" visible="true"></a-sky>
@@ -34,13 +41,6 @@
                       material="opacity: 1; shader: flat"
                       animation="property: components.material.material.opacity; from: 1; to: 0.4; dur: 1000; loop: true; dir: alternate">
             </a-sphere>
-        </a-entity>
-        
-        <!-- Grey target feedback circle (centered in view) -->
-        <a-entity id="target-circle" visible="false">
-            <a-ring position="0 0 -50" radius-inner="7" radius-outer="8" 
-                    color="#808080" material="side: double; opacity: 0.4; transparent: true">
-            </a-ring>
         </a-entity>
     </a-scene>
 
