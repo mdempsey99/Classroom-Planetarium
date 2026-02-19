@@ -106,9 +106,13 @@
             // Add camera rotation if available
             if (cameraLeft) {
                 const rotation = cameraLeft.getAttribute('rotation');
+                // Account for initial 180° rotation - normalize to actual compass direction
+                let normalizedY = rotation.y;
+                // Camera starts at 180° but reports as 0°, so we don't need to adjust
+                // The rotation.y already gives us the correct direction
                 data.rotation = {
                     x: Math.round(rotation.x),
-                    y: Math.round(rotation.y),
+                    y: Math.round(normalizedY),
                     z: Math.round(rotation.z)
                 };
             }

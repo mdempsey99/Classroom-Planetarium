@@ -200,19 +200,30 @@
                 if (!targetDirection || !studentRotation) return false;
                 
                 // Convert student rotation to direction vector
-                const yaw = studentRotation.y * Math.PI / 180;
-                const pitch = studentRotation.x * Math.PI / 180;
+                // A-Frame uses Y-up, with camera starting at (0,0,0) looking down -Z
+                // rotation="0 180 0" makes it look down +Z initially
+                // Yaw (Y rotation): 0° = +Z (South), 90° = +X (West), 180° = -Z (North), -90° = -X (East)
+                const yawRad = (studentRotation.y) * Math.PI / 180;
+                const pitchRad = (-studentRotation.x) * Math.PI / 180; // Negative because pitch is inverted
                 
                 const studentDir = {
-                    x: Math.cos(pitch) * Math.sin(yaw),
-                    y: Math.sin(pitch),
-                    z: Math.cos(pitch) * Math.cos(yaw)
+                    x: Math.sin(yawRad) * Math.cos(pitchRad),
+                    y: Math.sin(pitchRad),
+                    z: Math.cos(yawRad) * Math.cos(pitchRad)
                 };
+                
+                // Normalize
+                const len = Math.sqrt(studentDir.x * studentDir.x + studentDir.y * studentDir.y + studentDir.z * studentDir.z);
+                studentDir.x /= len;
+                studentDir.y /= len;
+                studentDir.z /= len;
                 
                 // Calculate dot product (angle between vectors)
                 const dot = studentDir.x * targetDirection.x + 
                            studentDir.y * targetDirection.y + 
                            studentDir.z * targetDirection.z;
+                
+                console.log('Student dir:', studentDir, 'Target:', targetDirection, 'Dot:', dot);
                 
                 // Threshold: 0.95 ≈ 18° tolerance, 0.98 ≈ 11° tolerance
                 return dot > 0.95;

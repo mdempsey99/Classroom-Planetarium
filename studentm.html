@@ -74,6 +74,7 @@
             // Add camera rotation if available
             if (camera) {
                 const rotation = camera.getAttribute('rotation');
+                // Account for initial 180° rotation
                 data.rotation = {
                     x: Math.round(rotation.x),
                     y: Math.round(rotation.y),
