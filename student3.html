@@ -37,6 +37,13 @@
                           animation="property: components.material.material.opacity; from: 1; to: 0.4; dur: 1000; loop: true; dir: alternate">
                 </a-sphere>
             </a-entity>
+            
+            <!-- Grey target feedback circle (centered in view) -->
+            <a-entity id="target-circle-left" visible="false">
+                <a-ring position="0 0 -50" radius-inner="7" radius-outer="8" 
+                        color="#808080" material="side: double; opacity: 0.4; transparent: true">
+                </a-ring>
+            </a-entity>
         </a-scene>
     </div>
     
@@ -64,6 +71,13 @@
                           animation="property: components.material.material.opacity; from: 1; to: 0.4; dur: 1000; loop: true; dir: alternate">
                 </a-sphere>
             </a-entity>
+            
+            <!-- Grey target feedback circle (centered in view) -->
+            <a-entity id="target-circle-right" visible="false">
+                <a-ring position="0 0 -50" radius-inner="7" radius-outer="8" 
+                        color="#808080" material="side: double; opacity: 0.4; transparent: true">
+                </a-ring>
+            </a-entity>
         </a-scene>
     </div>
     
@@ -90,6 +104,7 @@
         
         let pointerLeft, pointerRight, skyLeft, skyRight, videoLeft, videoRight;
         let videoElemLeft, videoElemRight;
+        let targetCircleLeft, targetCircleRight;
         let scenesLoaded = 0;
         let studentId = 'student_' + Math.random().toString(36).substr(2, 9);
         let heartbeatInterval;
@@ -142,6 +157,8 @@
                     videoRight   = document.getElementById('videoRight');
                     videoElemLeft  = document.getElementById('starry-video-left');
                     videoElemRight = document.getElementById('starry-video-right');
+                    targetCircleLeft  = document.getElementById('target-circle-left');
+                    targetCircleRight = document.getElementById('target-circle-right');
                     
                     // Get camera reference for rotation tracking
                     cameraLeft = document.querySelectorAll('a-camera')[0];
@@ -203,6 +220,20 @@
             
             pointerRight.setAttribute("position", `${x} ${y} ${z}`);
             pointerRight.setAttribute("visible", true);
+        });
+        
+        // Target updates - show grey circle when target is active
+        db.ref("classroom/target").on("value", snap => {
+            const data = snap.val();
+            if (!data || !targetCircleLeft || !targetCircleRight) return;
+            
+            if (data.visible === false) {
+                targetCircleLeft.setAttribute('visible', false);
+                targetCircleRight.setAttribute('visible', false);
+            } else {
+                targetCircleLeft.setAttribute('visible', true);
+                targetCircleRight.setAttribute('visible', true);
+            }
         });
     </script>
 </body>

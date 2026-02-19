@@ -35,6 +35,13 @@
                       animation="property: components.material.material.opacity; from: 1; to: 0.4; dur: 1000; loop: true; dir: alternate">
             </a-sphere>
         </a-entity>
+        
+        <!-- Grey target feedback circle (centered in view) -->
+        <a-entity id="target-circle" visible="false">
+            <a-ring position="0 0 -50" radius-inner="7" radius-outer="8" 
+                    color="#808080" material="side: double; opacity: 0.4; transparent: true">
+            </a-ring>
+        </a-entity>
     </a-scene>
 
     <script>
@@ -58,7 +65,7 @@
             fall:   { normal: "fall_equinox.jpeg",   const: "fall_equinox_constellations.jpeg" }
         };
 
-        let pointer, sky, videoSky, videoElem;
+        let pointer, sky, videoSky, videoElem, targetCircle;
         let studentId = 'student_' + Math.random().toString(36).substr(2, 9);
         let heartbeatInterval;
         let camera;
@@ -101,6 +108,7 @@
             videoSky = document.getElementById('videoSky');
             videoElem = document.getElementById('starry-video');
             camera   = document.querySelector('a-camera');
+            targetCircle = document.getElementById('target-circle');
             console.log('✅ Mono student scene ready');
         });
 
@@ -138,6 +146,18 @@
 
             pointer.setAttribute("position", `${x} ${y} ${z}`);
             pointer.setAttribute("visible", true);
+        });
+        
+        // Target updates - show grey circle when target is active
+        db.ref("classroom/target").on("value", snap => {
+            const data = snap.val();
+            if (!data || !targetCircle) return;
+            
+            if (data.visible === false) {
+                targetCircle.setAttribute('visible', false);
+            } else {
+                targetCircle.setAttribute('visible', true);
+            }
         });
     </script>
 </body>
