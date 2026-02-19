@@ -170,11 +170,14 @@
                         targetMarker.setAttribute('visible', true);
                         
                         // Store target direction for student comparison
+                        // The normalized point IS the direction from camera (0,0,0) to the target
                         targetDirection = {
                             x: normalized.x,
                             y: normalized.y,
                             z: normalized.z
                         };
+                        
+                        console.log('Target direction set:', targetDirection);
                         
                         db.ref("classroom/target").set({
                             x: normalized.x,
@@ -225,8 +228,9 @@
                 
                 console.log('Student dir:', studentDir, 'Target:', targetDirection, 'Dot:', dot);
                 
-                // Threshold: 0.95 ≈ 18° tolerance, 0.98 ≈ 11° tolerance
-                return dot > 0.95;
+                // Threshold: Check absolute value since vectors might be opposite
+                // 0.95 ≈ 18° tolerance, 0.98 ≈ 11° tolerance
+                return Math.abs(dot) > 0.95;
             }
             
             // Listen for all students
