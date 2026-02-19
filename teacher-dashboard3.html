@@ -182,7 +182,8 @@
                         // Get rotation info
                         let rotationHTML = '';
                         if (student.rotation) {
-                            const yaw = student.rotation.y;
+                            const yaw = student.rotation.y;     // Horizontal direction (azimuth)
+                            const pitch = student.rotation.x;   // Vertical angle (altitude)
                             let direction = '';
                             
                             // Convert yaw to compass direction
@@ -195,9 +196,20 @@
                             else if (yaw >= -112.5 && yaw < -67.5) direction = 'East';
                             else if (yaw >= -67.5 && yaw < -22.5) direction = 'SE';
                             
+                            // Vertical angle description
+                            let verticalDesc = '';
+                            if (pitch < -60) verticalDesc = '(far down)';
+                            else if (pitch < -30) verticalDesc = '(down)';
+                            else if (pitch < -10) verticalDesc = '(slight down)';
+                            else if (pitch <= 10) verticalDesc = '(horizon)';
+                            else if (pitch <= 30) verticalDesc = '(slight up)';
+                            else if (pitch <= 60) verticalDesc = '(up)';
+                            else verticalDesc = '(far up)';
+                            
                             rotationHTML = `
                                 <div class="student-rotation">
-                                    <span class="rotation-label">Looking:</span> ${direction} (${yaw}°)
+                                    <span class="rotation-label">Az:</span> ${direction} (${yaw}°)<br>
+                                    <span class="rotation-label">Alt:</span> ${pitch}° ${verticalDesc}
                                 </div>
                             `;
                         }
