@@ -61,19 +61,32 @@
         let pointer, sky, videoSky, videoElem;
         let studentId = 'student_' + Math.random().toString(36).substr(2, 9);
         let heartbeatInterval;
+        let camera;
         
-        // Send heartbeat to show we're connected
+        // Send heartbeat and camera rotation
         function sendHeartbeat() {
-            db.ref("classroom/students/" + studentId).set({
+            const data = {
                 name: "Student " + studentId.slice(-4),
                 lastSeen: Date.now(),
                 connected: true
-            });
+            };
+            
+            // Add camera rotation if available
+            if (camera) {
+                const rotation = camera.getAttribute('rotation');
+                data.rotation = {
+                    x: Math.round(rotation.x),
+                    y: Math.round(rotation.y),
+                    z: Math.round(rotation.z)
+                };
+            }
+            
+            db.ref("classroom/students/" + studentId).set(data);
         }
         
         // Start heartbeat when page loads
         sendHeartbeat();
-        heartbeatInterval = setInterval(sendHeartbeat, 3000); // Every 3 seconds
+        heartbeatInterval = setInterval(sendHeartbeat, 500); // Every 500ms for smooth tracking
         
         // Clean up when leaving
         window.addEventListener('beforeunload', () => {
@@ -86,6 +99,7 @@
             sky      = document.getElementById('sky');
             videoSky = document.getElementById('videoSky');
             videoElem = document.getElementById('starry-video');
+            camera   = document.querySelector('a-camera');
             console.log('✅ Mono student scene ready');
         });
 
