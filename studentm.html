@@ -80,7 +80,7 @@
         <a-camera fov="60" rotation="0 180 0" look-controls="magicWindowTrackingEnabled: true; touchEnabled: false" wasd-controls="enabled: false">
             <!-- Grey target feedback circle (always centered in view) -->
             <a-entity id="target-circle" visible="false">
-                <a-ring position="0 0 -2" radius-inner="0.28" radius-outer="0.32" 
+                <a-ring id="target-ring" position="0 0 -2" radius-inner="0.28" radius-outer="0.32" 
                         color="#808080" material="side: double; opacity: 0.4; transparent: true">
                 </a-ring>
             </a-entity>
@@ -125,7 +125,8 @@
             fall:   { normal: "fall_equinox.jpeg",   const: "fall_equinox_constellations.jpeg" }
         };
 
-        let pointer, sky, videoSky, videoElem, targetCircle;
+        let pointer, sky, videoSky, videoElem, targetCircle, targetRing;
+        let targetDirection = null;
         let studentId = 'student_' + Math.random().toString(36).substr(2, 9);
         let studentName = '';
         let heartbeatInterval;
@@ -195,6 +196,7 @@
             videoElem = document.getElementById('starry-video');
             camera   = document.querySelector('a-camera');
             targetCircle = document.getElementById('target-circle');
+            targetRing = document.getElementById('target-ring');
             console.log('✅ Mono student scene ready');
         });
 
@@ -241,10 +243,51 @@
             
             if (data.visible === false) {
                 targetCircle.setAttribute('visible', false);
+                targetDirection = null;
             } else {
                 targetCircle.setAttribute('visible', true);
+                
+                // Store target direction for checking
+                targetDirection = {
+                    x: data.x,
+                    y: data.y,
+                    z: data.z
+                };
             }
         });
+        
+        // Check if looking at target every 200ms
+        setInterval(function() {
+            if (!targetDirection || !camera || !targetRing) return;
+            
+            const rotation = camera.getAttribute('rotation');
+            const yawRad = rotation.y * Math.PI / 180;
+            const pitchRad = -rotation.x * Math.PI / 180;
+            
+            const studentDir = {
+                x: Math.sin(yawRad) * Math.cos(pitchRad),
+                y: Math.sin(pitchRad),
+                z: Math.cos(yawRad) * Math.cos(pitchRad)
+            };
+            
+            // Normalize
+            const len = Math.sqrt(studentDir.x * studentDir.x + studentDir.y * studentDir.y + studentDir.z * studentDir.z);
+            studentDir.x /= len;
+            studentDir.y /= len;
+            studentDir.z /= len;
+            
+            // Calculate dot product
+            const dot = studentDir.x * targetDirection.x + 
+                       studentDir.y * targetDirection.y + 
+                       studentDir.z * targetDirection.z;
+            
+            // Check if looking at target (within tolerance)
+            const foundTarget = Math.abs(dot) > 0.95;
+            
+            // Change color based on whether target is found
+            const color = foundTarget ? '#4CAF50' : '#808080'; // Green if found, grey if not
+            targetRing.setAttribute('color', color);
+        }, 200);
     </script>
 </body>
 </html>
