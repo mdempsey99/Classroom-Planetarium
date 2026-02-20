@@ -228,9 +228,9 @@
                 
                 console.log('Student dir:', studentDir, 'Target:', targetDirection, 'Dot:', dot);
                 
-                // Threshold: Check absolute value since vectors might be opposite
-                // 0.95 ≈ 18° tolerance, 0.98 ≈ 11° tolerance
-                return Math.abs(dot) > 0.95;
+                // Tighter tolerance: 0.98 ≈ 11° - must be centered in ring
+                // No Math.abs - opposite direction shouldn't count
+                return dot > 0.98;
             }
             
             // Listen for all students
