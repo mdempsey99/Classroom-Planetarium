@@ -458,9 +458,15 @@
             // No Math.abs - opposite direction shouldn't count
             const foundTarget = dot > 0.98;
             
+            // Debug logging
+            if (dot > 0.90) {
+                console.log('Getting close! Dot:', dot.toFixed(3), 'Found:', foundTarget);
+            }
+            
             // Trigger celebration on first find
             if (foundTarget && !hasFoundTarget) {
                 hasFoundTarget = true;
+                console.log('🎉 CELEBRATION TRIGGERED!');
                 celebrate();
             }
             
