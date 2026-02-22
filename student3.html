@@ -454,13 +454,13 @@
                        studentDir.z * targetDirection.z;
             
             // Check if looking at target (within tolerance)
-            // Tighter tolerance: 0.98 ≈ 11° - must be centered in ring
-            // No Math.abs - opposite direction shouldn't count
-            const foundTarget = dot > 0.98;
+            // Use Math.abs to handle coordinate flips, but very strict: 0.995 ≈ 5.7°
+            // This requires nearly perfect centering
+            const foundTarget = Math.abs(dot) > 0.995;
             
             // Debug logging
-            if (dot > 0.90) {
-                console.log('Getting close! Dot:', dot.toFixed(3), 'Found:', foundTarget);
+            if (Math.abs(dot) > 0.90) {
+                console.log('Getting close! Dot:', dot.toFixed(3), 'AbsDot:', Math.abs(dot).toFixed(3), 'Found:', foundTarget);
             }
             
             // Trigger celebration on first find

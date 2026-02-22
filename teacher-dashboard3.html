@@ -228,9 +228,8 @@
                 
                 console.log('Student dir:', studentDir, 'Target:', targetDirection, 'Dot:', dot);
                 
-                // Tighter tolerance: 0.98 ≈ 11° - must be centered in ring
-                // No Math.abs - opposite direction shouldn't count
-                return dot > 0.98;
+                // Use Math.abs to handle coordinate flips, but very strict: 0.995 ≈ 5.7°
+                return Math.abs(dot) > 0.995;
             }
             
             // Listen for all students
