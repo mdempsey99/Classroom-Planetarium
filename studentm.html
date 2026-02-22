@@ -371,9 +371,9 @@
                        studentDir.z * targetDirection.z;
             
             // Check if looking at target (within tolerance)
-            // Tighter tolerance: 0.96 ≈ 14° - must be centered in ring
+            // Tighter tolerance: 0.98 ≈ 11° - must be centered in ring
             // No Math.abs - opposite direction shouldn't count
-            const foundTarget = dot > 0.96;
+            const foundTarget = dot > 0.98;
             
             // Debug logging
             if (dot > 0.90) {
