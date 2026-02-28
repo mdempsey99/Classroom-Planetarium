@@ -9,11 +9,28 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <style>
         body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; background: #000; }
-        #controls { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; 
-                    background: rgba(0,0,0,0.8); padding: 15px; border-radius: 10px; display: flex; 
-                    gap: 10px; flex-wrap: wrap; justify-content: center; max-width: 90%; }
+        #controls-left { 
+            position: absolute; 
+            top: 20px; 
+            left: 20px; 
+            z-index: 1000; 
+            display: flex; 
+            flex-direction: column;
+            gap: 10px; 
+            max-width: 180px;
+        }
+        #controls-right { 
+            position: absolute; 
+            top: 20px; 
+            right: 20px; 
+            z-index: 1000; 
+            display: flex; 
+            flex-direction: column;
+            gap: 10px; 
+            max-width: 180px;
+        }
         button { padding: 12px 20px; margin: 0; font-weight: bold; border: none; border-radius: 8px; 
-                 cursor: pointer; color: white; font-size: 14px; transition: all 0.3s ease; }
+                 cursor: pointer; color: white; font-size: 14px; transition: all 0.3s ease; width: 100%; }
         button:hover { transform: scale(1.05); }
         .season-btn { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
         #const-btn { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
@@ -29,16 +46,19 @@
     </style>
 </head>
 <body>
-    <div id="controls">
+    <div id="controls-left">
         <button class="season-btn" data-season="summer">☀️ Summer</button>
         <button class="season-btn" data-season="winter">❄️ Winter</button>
         <button class="season-btn" data-season="spring">🌸 Spring</button>
         <button class="season-btn" data-season="fall">🍂 Fall</button>
+        <button class="custom-btn" data-custom="today">📅 Today</button>
+        <button class="custom-btn" data-custom="tonight">🌙 Tonight</button>
+    </div>
+    
+    <div id="controls-right">
         <button id="const-btn">Show Constellations</button>
         <button id="pointer-btn">Enable Pointer</button>
         <button id="target-btn">Set Target</button>
-        <button class="custom-btn" data-custom="today">📅 Today</button>
-        <button class="custom-btn" data-custom="tonight">🌙 Tonight</button>
         <button class="custom-btn" data-custom="az-alt">🧭 Az-Alt</button>
         <button class="custom-btn" data-custom="ra-dec">⭐ RA-Dec</button>
     </div>
