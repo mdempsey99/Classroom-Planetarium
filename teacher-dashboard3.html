@@ -22,26 +22,10 @@
         #pointer-btn.active { background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%); }
         #target-btn { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
         #target-btn.active { background: linear-gradient(135deg, #4CAF50 0%, #8BC34A 100%); }
+        .custom-btn { background: linear-gradient(135deg, #e65c00 0%, #F9D423 100%); }
+        .custom-btn.active { background: linear-gradient(135deg, #F9D423 0%, #e65c00 100%); font-weight: bold; }
         #status { position: absolute; bottom: 20px; left: 20px; background: rgba(0,0,0,0.8); 
                   color: white; padding: 10px 15px; border-radius: 8px; font-size: 14px; z-index: 1000; }
-        #student-panel { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.9);
-                         color: white; padding: 15px; border-radius: 10px; min-width: 200px;
-                         max-height: 80vh; overflow-y: auto; z-index: 1000; border: 2px solid #667eea; }
-        #student-panel h3 { margin: 0 0 10px 0; color: #90caf9; font-size: 16px; }
-        .student-item { padding: 8px; margin: 5px 0; background: rgba(102, 126, 234, 0.2);
-                        border-radius: 5px; }
-        .student-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-        .student-status { width: 10px; height: 10px; border-radius: 50%; background: #4CAF50;
-                          animation: pulse 2s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-        .student-name { flex: 1; }
-        .student-name.found { color: #4CAF50; font-weight: bold; }
-        .student-name.not-found { color: #ff6b6b; }
-        .student-time { font-size: 11px; color: #90caf9; }
-        .student-rotation { font-size: 11px; color: #FFD700; font-family: monospace;
-                            margin-top: 4px; background: rgba(0,0,0,0.3); padding: 4px;
-                            border-radius: 3px; }
-        .rotation-label { color: #90caf9; }
     </style>
 </head>
 <body>
@@ -53,6 +37,10 @@
         <button id="const-btn">Show Constellations</button>
         <button id="pointer-btn">Enable Pointer</button>
         <button id="target-btn">Set Target</button>
+        <button class="custom-btn" data-custom="today">📅 Today</button>
+        <button class="custom-btn" data-custom="tonight">🌙 Tonight</button>
+        <button class="custom-btn" data-custom="az-alt">🧭 Az-Alt</button>
+        <button class="custom-btn" data-custom="ra-dec">⭐ RA-Dec</button>
     </div>
     
     <div id="status">
@@ -60,12 +48,6 @@
         <div>Constellations: <span id="const-display">Off</span></div>
         <div>Pointer: <span id="pointer-display">Off</span></div>
         <div>Target: <span id="target-display">Off</span></div>
-    </div>
-    
-    <div id="student-panel">
-        <h3>📱 Connected Students</h3>
-        <div id="student-count" style="margin-bottom: 10px; color: #FFD700;">0 online</div>
-        <div id="student-list"></div>
     </div>
     
     <a-scene>        
@@ -123,7 +105,6 @@
         let targetEnabled = false;
         let marker, targetMarker, starSky;
         let targetDirection = null;
-        let studentCount = 0;
         
         const sceneEl = document.querySelector('a-scene');
         sceneEl.addEventListener('loaded', function() {
@@ -191,127 +172,8 @@
             });
             
             setupButtons();
-            setupStudentTracking();
         });
         
-        function setupStudentTracking() {
-            const studentListEl = document.getElementById('student-list');
-            const studentCountEl = document.getElementById('student-count');
-            
-            // Helper function to check if student is looking at target
-            function isLookingAtTarget(studentRotation) {
-                if (!targetDirection || !studentRotation) return false;
-                
-                // Convert student rotation to direction vector
-                // A-Frame uses Y-up, with camera starting at (0,0,0) looking down -Z
-                // rotation="0 180 0" makes it look down +Z initially
-                // Yaw (Y rotation): 0° = +Z (South), 90° = +X (West), 180° = -Z (North), -90° = -X (East)
-                const yawRad = (studentRotation.y) * Math.PI / 180;
-                const pitchRad = (-studentRotation.x) * Math.PI / 180; // Negative because pitch is inverted
-                
-                const studentDir = {
-                    x: Math.sin(yawRad) * Math.cos(pitchRad),
-                    y: Math.sin(pitchRad),
-                    z: Math.cos(yawRad) * Math.cos(pitchRad)
-                };
-                
-                // Normalize
-                const len = Math.sqrt(studentDir.x * studentDir.x + studentDir.y * studentDir.y + studentDir.z * studentDir.z);
-                studentDir.x /= len;
-                studentDir.y /= len;
-                studentDir.z /= len;
-                
-                // Calculate dot product (angle between vectors)
-                const dot = studentDir.x * targetDirection.x + 
-                           studentDir.y * targetDirection.y + 
-                           studentDir.z * targetDirection.z;
-                
-                console.log('Student dir:', studentDir, 'Target:', targetDirection, 'Dot:', dot);
-                
-                // Use Math.abs to handle coordinate flips, but very strict: 0.995 ≈ 5.7°
-                return Math.abs(dot) > 0.995;
-            }
-            
-            // Listen for all students
-            db.ref("classroom/students").on("value", snapshot => {
-                const students = snapshot.val() || {};
-                const now = Date.now();
-                const activeStudents = {};
-                
-                // Filter to only show students active in last 10 seconds
-                Object.keys(students).forEach(id => {
-                    const student = students[id];
-                    if (now - student.lastSeen < 10000) {
-                        activeStudents[id] = student;
-                    }
-                });
-                
-                studentCount = Object.keys(activeStudents).length;
-                studentCountEl.textContent = `${studentCount} online`;
-                
-                // Update student list
-                studentListEl.innerHTML = '';
-                
-                if (studentCount === 0) {
-                    studentListEl.innerHTML = '<div style="color: #888; font-size: 12px; padding: 10px;">No students connected</div>';
-                } else {
-                    Object.keys(activeStudents).forEach(id => {
-                        const student = activeStudents[id];
-                        const secondsAgo = Math.floor((now - student.lastSeen) / 1000);
-                        const timeStr = secondsAgo === 0 ? 'just now' : `${secondsAgo}s ago`;
-                        
-                        // Check if looking at target
-                        const foundTarget = targetEnabled && isLookingAtTarget(student.rotation);
-                        const nameClass = targetEnabled ? (foundTarget ? 'found' : 'not-found') : '';
-                        
-                        // Get rotation info
-                        let rotationHTML = '';
-                        if (student.rotation) {
-                            const yaw = student.rotation.y;
-                            const pitch = student.rotation.x;
-                            let direction = '';
-                            
-                            if (yaw >= -22.5 && yaw < 22.5) direction = 'South';
-                            else if (yaw >= 22.5 && yaw < 67.5) direction = 'SW';
-                            else if (yaw >= 67.5 && yaw < 112.5) direction = 'West';
-                            else if (yaw >= 112.5 && yaw < 157.5) direction = 'NW';
-                            else if (yaw >= 157.5 || yaw < -157.5) direction = 'North';
-                            else if (yaw >= -157.5 && yaw < -112.5) direction = 'NE';
-                            else if (yaw >= -112.5 && yaw < -67.5) direction = 'East';
-                            else if (yaw >= -67.5 && yaw < -22.5) direction = 'SE';
-                            
-                            let verticalDesc = '';
-                            if (pitch < -60) verticalDesc = '(far down)';
-                            else if (pitch < -30) verticalDesc = '(down)';
-                            else if (pitch < -10) verticalDesc = '(slight down)';
-                            else if (pitch <= 10) verticalDesc = '(horizon)';
-                            else if (pitch <= 30) verticalDesc = '(slight up)';
-                            else if (pitch <= 60) verticalDesc = '(up)';
-                            else verticalDesc = '(far up)';
-                            
-                            rotationHTML = `
-                                <div class="student-rotation">
-                                    <span class="rotation-label">Az:</span> ${direction} (${yaw}°)<br>
-                                    <span class="rotation-label">Alt:</span> ${pitch}° ${verticalDesc}
-                                </div>
-                            `;
-                        }
-                        
-                        const div = document.createElement('div');
-                        div.className = 'student-item';
-                        div.innerHTML = `
-                            <div class="student-header">
-                                <div class="student-status"></div>
-                                <div class="student-name ${nameClass}">${student.name || 'Student ' + id.slice(-4)}</div>
-                                <div class="student-time">${timeStr}</div>
-                            </div>
-                            ${rotationHTML}
-                        `;
-                        studentListEl.appendChild(div);
-                    });
-                }
-            });
-        }
         
         function toggleTarget() {
             targetEnabled = !targetEnabled;
@@ -341,6 +203,32 @@
             document.getElementById('const-btn').addEventListener('click', toggleConstellations);
             document.getElementById('pointer-btn').addEventListener('click', togglePointer);
             document.getElementById('target-btn').addEventListener('click', toggleTarget);
+            
+            document.querySelectorAll('.custom-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    loadCustomView(this.getAttribute('data-custom'));
+                });
+            });
+        }
+        
+        function loadCustomView(viewName) {
+            // Highlight active button
+            document.querySelectorAll('.custom-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector(`[data-custom="${viewName}"]`).classList.add('active'));
+            
+            // Load the custom image
+            const imagePath = `${viewName}.jpeg`;
+            starSky.setAttribute("src", imagePath);
+            
+            // Update status
+            document.getElementById('season-display').textContent = viewName;
+            
+            // Broadcast to students
+            db.ref("classroom/currentView").set({
+                mode: 'custom',
+                customView: viewName,
+                timestamp: Date.now()
+            });
         }
         
         function togglePointer() {

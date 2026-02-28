@@ -296,6 +296,13 @@
                 sky.setAttribute('visible', false);
                 videoSky.setAttribute('visible', true);
                 state.playing ? videoElem.play() : videoElem.pause();
+            } else if (state.mode === 'custom') {
+                // Custom view mode (today, tonight, az-alt, ra-dec)
+                videoElem.pause();
+                videoSky.setAttribute('visible', false);
+                sky.setAttribute('visible', true);
+                const customImage = `${state.customView}.jpeg`;
+                sky.setAttribute("src", customImage);
             } else {
                 videoElem.pause();
                 videoSky.setAttribute('visible', false);

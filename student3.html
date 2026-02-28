@@ -368,6 +368,18 @@
                     videoElemLeft.pause();
                     videoElemRight.pause();
                 }
+            } else if (state.mode === 'custom') {
+                // Custom view mode (today, tonight, az-alt, ra-dec)
+                videoElemLeft.pause();
+                videoElemRight.pause();
+                videoLeft.setAttribute('visible', false);
+                videoRight.setAttribute('visible', false);
+                skyLeft.setAttribute('visible', true);
+                skyRight.setAttribute('visible', true);
+                
+                const customImage = `${state.customView}.jpeg`;
+                skyLeft.setAttribute("src", customImage);
+                skyRight.setAttribute("src", customImage);
             } else {
                 videoElemLeft.pause();
                 videoElemRight.pause();
